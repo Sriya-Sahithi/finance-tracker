@@ -16,7 +16,6 @@ export type Account = {
   openingBalance: string;
   currentBalance: string;
   currency: string;
-  accountNumber: string | null;
   createdAt: string;
   updatedAt: string;
 };
