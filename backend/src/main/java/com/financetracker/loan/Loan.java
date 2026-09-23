@@ -1,7 +1,9 @@
 package com.financetracker.loan;
 
+import com.financetracker.common.security.EncryptedStringConverter;
 import com.financetracker.user.User;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -66,6 +68,10 @@ public class Loan {
     @Column(name = "prepayment_strategy", nullable = false, length = 32)
     private PrepaymentStrategy prepaymentStrategy;
 
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "loan_account_number_enc")
+    private String loanAccountNumber;
+
     @Version
     @Column(nullable = false)
     private long version;
@@ -114,6 +120,14 @@ public class Loan {
 
     public void setLoanType(LoanType loanType) {
         this.loanType = loanType;
+    }
+
+    public String getLoanAccountNumber() {
+        return loanAccountNumber;
+    }
+
+    public void setLoanAccountNumber(String loanAccountNumber) {
+        this.loanAccountNumber = loanAccountNumber;
     }
 
     public BigDecimal getPrincipalAmount() {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  CreditCard,
   Landmark,
   LayoutDashboard,
   Menu,
@@ -22,6 +23,7 @@ const links = [
   { href: "/budgets", label: "Budgets", icon: PieChart },
   { href: "/loans", label: "Loans", icon: Landmark },
   { href: "/accounts", label: "Accounts", icon: Wallet },
+  { href: "/credit-report", label: "Credit report", icon: CreditCard },
   { href: "/reports", label: "Reports", icon: PieChart },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

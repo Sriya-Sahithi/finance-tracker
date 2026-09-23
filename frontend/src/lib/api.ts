@@ -3,13 +3,18 @@ import type {
   ApiFieldError,
   Budget,
   Category,
+  CreditReportAccount,
+  CreditReportParsePreview,
   Dashboard,
+  ImportTargetType,
   Loan,
   LoanPayment,
   MonthlyReport,
   Page,
   Prepayment,
   ScheduleRow,
+  StatementCommitResult,
+  StatementParsePreview,
   Transaction,
   User,
 } from "./types";
@@ -44,6 +49,19 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (token) headers.set("Authorization", `Bearer ${token}`);
   const response = await fetch(`${API_URL}${path}`, { ...options, headers });
   if (response.status === 204) return undefined as T;
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new ApiError(response.status, body.message || "Request failed", body.fieldErrors || []);
+  }
+  return body as T;
+}
+
+/** Like `api`, but sends a FormData body without forcing a JSON Content-Type header. */
+export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const response = await fetch(`${API_URL}${path}`, { method: "POST", headers, body: formData });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new ApiError(response.status, body.message || "Request failed", body.fieldErrors || []);
@@ -111,4 +129,26 @@ export const dashboardApi = {
 
 export const reportApi = {
   monthly: (year: number, month: number) => api<MonthlyReport>(`/api/reports/monthly?year=${year}&month=${month}`),
+};
+
+export const importApi = {
+  previewStatement: (file: File, targetType: ImportTargetType) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("targetType", targetType);
+    return apiUpload<StatementParsePreview>("/api/imports/statements/preview", formData);
+  },
+  commitStatement: (body: unknown) =>
+    api<StatementCommitResult>("/api/imports/statements/commit", { method: "POST", body: JSON.stringify(body) }),
+};
+
+export const creditReportApi = {
+  list: () => api<CreditReportAccount[]>("/api/credit-reports"),
+  preview: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiUpload<CreditReportParsePreview>("/api/credit-reports/preview", formData);
+  },
+  commit: (body: unknown) =>
+    api<CreditReportAccount[]>("/api/credit-reports/commit", { method: "POST", body: JSON.stringify(body) }),
 };

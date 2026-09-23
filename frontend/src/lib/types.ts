@@ -151,3 +151,49 @@ export type MonthlyReport = {
 };
 
 export type ApiFieldError = { field: string; message: string };
+
+export type ImportTargetType = "ACCOUNT" | "LOAN";
+
+export type StatementColumnMapping = {
+  dateColumn: string | null;
+  descriptionColumn: string | null;
+  amountColumn: string | null;
+  debitColumn: string | null;
+  creditColumn: string | null;
+  balanceColumn: string | null;
+  accountNumberColumn: string | null;
+};
+
+export type StatementParsePreview = {
+  importToken: string;
+  targetType: ImportTargetType;
+  headers: string[];
+  sampleRows: Record<string, string>[];
+  suggestedMapping: StatementColumnMapping;
+  rowCount: number;
+};
+
+export type StatementCommitResult = {
+  rowsProcessed: number;
+  rowsImported: number;
+  rowsSkipped: number;
+  transactionsCreated: number;
+  updatedBalance: string;
+};
+
+export type CreditReportAccount = {
+  id: number | null;
+  bankName: string;
+  accountType: "BANK" | "CREDIT_CARD" | "LOAN" | "OTHER";
+  accountNumberMasked: string | null;
+  currentBalance: string;
+  creditLimit: string | null;
+  status: "ACTIVE" | "CLOSED";
+  reportDate: string | null;
+};
+
+export type CreditReportParsePreview = {
+  accounts: CreditReportAccount[];
+  sourceFileName: string;
+  warning: string | null;
+};
