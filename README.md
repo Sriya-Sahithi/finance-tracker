@@ -7,7 +7,7 @@ Personal finance app for accounts, transactions, monthly budgets, and reducing-b
 One Spring Boot monolith. The Next.js app talks to it over HTTP with a JWT.
 
 ```
-browser → Next.js (Vercel) → Spring Boot API (Render) → PostgreSQL
+browser → Next.js (Render) → Spring Boot API (Render) → PostgreSQL (Render)
 ```
 
 Backend packages follow controller → service → repository → database:
@@ -57,8 +57,8 @@ Backend local defaults live in `backend/src/main/resources/application-dev.yml`.
 | `DATABASE_PASSWORD` | API prod | Database password. Optional when `DATABASE_URL` already contains the password. |
 | `JWT_SECRET` | API | HMAC secret, at least 32 characters. Required in production. The Blueprint generates one. |
 | `JWT_EXPIRATION_MS` | API | Token lifetime, default 24 hours |
-| `CORS_ALLOWED_ORIGINS` | API | Comma-separated browser origins, no trailing slash, for example `https://your-app.vercel.app`. You set this. |
-| `NEXT_PUBLIC_API_URL` | Web | API origin with no path, default `http://localhost:8080`. On Vercel this is the Render service origin. |
+| `CORS_ALLOWED_ORIGINS` | API | Comma-separated browser origins, no trailing slash. On Render this is the site's public URL. |
+| `NEXT_PUBLIC_API_URL` | Web | API origin with no path, default `http://localhost:8080`. Next.js inlines it at build time. On Render this is the API's public URL. |
 
 Copy `frontend/.env.example` to `frontend/.env.local` if the API is not on port 8080.
 
@@ -124,48 +124,39 @@ Every query is scoped by the authenticated user id.
 
 ## Deployment
 
-These files configure the hosts. Nothing here deploys automatically.
+`render.yaml` is the Blueprint. It hosts the whole app on Render. Nothing deploys until you apply that file.
 
-### Render (API and Postgres)
+It creates three resources, all in Oregon:
 
-The frontend stays on Vercel. `render.yaml` is the Blueprint. It creates only:
+- Web service `finance-tracker-api` — Docker, `backend/Dockerfile`, context `backend`, health check `/actuator/health`
+- Postgres `finance-tracker-db` — database `finance_tracker`, Postgres 16
+- Web service `finance-tracker-web` — Node 22, root directory `frontend`, build `npm ci && npm run build`, start `npm start -- --hostname 0.0.0.0 --port $PORT`
 
-- Web service `finance-tracker-api` (Docker, `backend/Dockerfile`, context `backend`, health check `/actuator/health`)
-- Postgres `finance-tracker-db` (database `finance_tracker`, Postgres 16)
-
-Render's defaults apply when the file omits a plan: web `starter`, database `basic-256mb`. Both are paid instance types.
+Plans are omitted, so Render's defaults apply: each web service `starter`, database `basic-256mb`. Those are paid instance types.
 
 1. In the Render Dashboard, choose **New** → **Blueprint**.
 2. Connect GitHub repo `Viswanadh-Ganti/finance-tracker`, branch `main`.
-3. Render reads `render.yaml` at the repo root. Apply it.
-4. When prompted, set `CORS_ALLOWED_ORIGINS` to the Vercel origin (no trailing slash). If the frontend URL does not exist yet, enter a placeholder such as `https://finance-tracker.vercel.app` and update it after Vercel assigns the real host.
-5. Do not deploy the `frontend` directory to Render.
+3. Render reads `render.yaml` at the repo root. Apply it. There is no prompt for URLs or secrets.
 
-`DATABASE_URL`, `DATABASE_USERNAME`, and `DATABASE_PASSWORD` come from the Postgres instance. `JWT_SECRET` is generated (base64, 256 bits, longer than 32 characters). `SPRING_PROFILES_ACTIVE=prod` is set in the Blueprint. Flyway runs on boot. Do not enable Hibernate `ddl-auto` in production.
+The Blueprint wires the public URLs. You do not create the API first and type them in later:
 
-After the first deploy, the API origin is the web service URL in the dashboard, with no path. If the name is available it is `https://finance-tracker-api.onrender.com`. Set the frontend to that exact origin:
+- `NEXT_PUBLIC_API_URL` is the API service's `RENDER_EXTERNAL_URL`
+- `CORS_ALLOWED_ORIGINS` is the site's `RENDER_EXTERNAL_URL`
 
-```bash
-NEXT_PUBLIC_API_URL=https://finance-tracker-api.onrender.com
-```
+If the service names are available, those URLs are `https://finance-tracker-api.onrender.com` and `https://finance-tracker-web.onrender.com`. A name collision makes Render add a suffix; the `fromService` links still follow the real hosts.
 
-Use the dashboard URL if Render appends a suffix. Confirm the process:
+`NEXT_PUBLIC_API_URL` is compiled into the browser bundle. If the first site build ran before that value was set, open `finance-tracker-web` and deploy it again after the API URL is visible. `CORS_ALLOWED_ORIGINS` is read when the API process starts. If the API booted with an empty origin list, deploy `finance-tracker-api` again.
+
+`DATABASE_URL`, `DATABASE_USERNAME`, and `DATABASE_PASSWORD` come from the Postgres instance. The API accepts Render's `postgresql://` URL and a `jdbc:postgresql://` URL. `JWT_SECRET` is generated (base64, 256 bits, longer than 32 characters). `SPRING_PROFILES_ACTIVE=prod` is set in the Blueprint. Render sets `PORT` on both web services. Flyway runs on boot. Do not enable Hibernate `ddl-auto` in production.
+
+Confirm the API:
 
 ```bash
 curl -fsS https://finance-tracker-api.onrender.com/actuator/health
 ```
 
-A live service returns HTTP 200 and `{"status":"UP"}`. `DOWN` or a connection error means the database env vars or `JWT_SECRET` did not reach the container.
-
-### Vercel (Next.js)
-
-1. Import the GitHub repo.
-2. Set the root directory to `frontend`.
-3. Set `NEXT_PUBLIC_API_URL` to the Render API origin from the previous section.
-4. Add that same site origin to `CORS_ALLOWED_ORIGINS` on the API.
-
-`frontend/vercel.json` marks the project as Next.js.
+A live service returns HTTP 200 and `{"status":"UP"}`. Use the dashboard host if Render added a suffix. Then open the site URL and register.
 
 ### GitHub
 
-Source of truth for both services. Do not commit `.env.local`, JWT secrets, or database passwords.
+Source of truth for the API, the site, and Postgres. Do not commit `.env.local`, JWT secrets, or database passwords.

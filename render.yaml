@@ -2,14 +2,20 @@ databases:
   - name: finance-tracker-db
     databaseName: finance_tracker
     postgresMajorVersion: "16"
+    region: oregon
 
 services:
   - type: web
     name: finance-tracker-api
     runtime: docker
+    region: oregon
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     healthCheckPath: /actuator/health
+    buildFilter:
+      paths:
+        - backend/**
+        - render.yaml
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
@@ -28,4 +34,27 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ALLOWED_ORIGINS
-        sync: false
+        fromService:
+          name: finance-tracker-web
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+
+  - type: web
+    name: finance-tracker-web
+    runtime: node
+    region: oregon
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    startCommand: npm start -- --hostname 0.0.0.0 --port $PORT
+    buildFilter:
+      paths:
+        - frontend/**
+        - render.yaml
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          name: finance-tracker-api
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
