@@ -86,6 +86,7 @@ export default function StatementImportPage() {
       setSuccess(buildSuccessMessage(result));
       setPreview(null);
       setSelectedFingerprints([]);
+      setSelectedAccountId("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not confirm import");
     } finally {

@@ -12,6 +12,7 @@ import com.financetracker.transaction.TransactionRepository;
 import com.financetracker.transaction.dto.TransactionResponse;
 import com.financetracker.user.User;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -131,6 +132,6 @@ public class AccountService {
         if (accountNumber == null || accountNumber.isBlank()) {
             return null;
         }
-        return accountNumber.trim();
+        return accountNumber.trim().replaceAll("[^A-Za-z0-9]", "").toUpperCase(Locale.ROOT);
     }
 }

@@ -270,7 +270,7 @@ public class StatementImportService {
 
     private SuggestedAccount suggestAccount(Long userId, String accountName, String accountNumber) {
         if (accountNumber != null) {
-            Account match = accountService.findOwnedByAccountNumber(userId, accountNumber);
+            Account match = accountService.findOwnedByAccountNumber(userId, normalizeAccountNumber(accountNumber));
             if (match != null) {
                 return new SuggestedAccount(match.getId(), match.getName(), "ACCOUNT_NUMBER");
             }
@@ -332,7 +332,7 @@ public class StatementImportService {
 
     private String fingerprint(String accountName, String accountNumber, ParsedStatementRow row) {
         String payload = String.join("|",
-                normalizeForFingerprint(accountNumber),
+                normalizeForFingerprint(accountNumber == null ? null : normalizeAccountNumber(accountNumber)),
                 normalizeForFingerprint(accountName),
                 row.transactionDate().toString(),
                 row.type().name(),
