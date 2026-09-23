@@ -20,7 +20,6 @@ export default function AccountsPage() {
   const [type, setType] = useState("BANK");
   const [accountNumber, setAccountNumber] = useState("");
   const [openingBalance, setOpeningBalance] = useState("0.00");
-  const [accountNumber, setAccountNumber] = useState("");
 
   function load() {
     accountApi.list().then(setAccounts).catch((err) => setError(err.message));
