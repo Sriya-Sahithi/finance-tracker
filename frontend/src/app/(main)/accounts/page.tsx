@@ -31,7 +31,7 @@ export default function AccountsPage() {
       await accountApi.create({
         name,
         type,
-        accountNumber: type === "BANK" ? accountNumber : undefined,
+        accountNumber: type === "BANK" && accountNumber.trim() ? accountNumber : undefined,
         openingBalance,
         currency: "INR",
       });

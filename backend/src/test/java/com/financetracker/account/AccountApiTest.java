@@ -133,6 +133,20 @@ class AccountApiTest {
         assertThat(converted.getBody().get("accountNumber").isNull()).isTrue();
     }
 
+    @Test
+    void rejectsInvalidAccountNumber() {
+        String token = token("invalid-account@example.com", "Invalid Account");
+        ResponseEntity<JsonNode> response = exchange("/api/accounts", HttpMethod.POST, token, Map.of(
+                "name", "Axis Savings",
+                "type", "BANK",
+                "accountNumber", "12-34-??",
+                "openingBalance", "1000.00",
+                "currency", "INR"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().get("message").asText()).isEqualTo("Account number must be 4 to 34 letters or digits");
+    }
+
     private String token(String email, String name) {
         ResponseEntity<JsonNode> response = rest.postForEntity("/api/auth/register", Map.of(
                 "email", email,
