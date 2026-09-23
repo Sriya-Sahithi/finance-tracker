@@ -10,6 +10,8 @@ import type {
   Page,
   Prepayment,
   ScheduleRow,
+  StatementImportConfirmResponse,
+  StatementImportPreview,
   Transaction,
   User,
 } from "./types";
@@ -39,9 +41,10 @@ export function setToken(token: string | null) {
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
-  if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
+  if (options.body && !isFormData && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (token) headers.set("Authorization", "Bearer " + token);
   const response = await fetch(`${API_URL}${path}`, { ...options, headers });
   if (response.status === 204) return undefined as T;
   const body = await response.json().catch(() => ({}));
@@ -82,6 +85,19 @@ export const transactionApi = {
   update: (id: number, body: unknown) =>
     api<Transaction>(`/api/transactions/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   remove: (id: number) => api<void>(`/api/transactions/${id}`, { method: "DELETE" }),
+};
+
+export const statementImportApi = {
+  preview: (file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    return api<StatementImportPreview>("/api/statement-imports/preview", { method: "POST", body });
+  },
+  confirm: (sessionId: string, body: { accountId: number; rowFingerprints: string[] }) =>
+    api<StatementImportConfirmResponse>(`/api/statement-imports/${sessionId}/confirm`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
 
 export const budgetApi = {

@@ -46,6 +46,9 @@ public class Account {
     @Column(nullable = false, length = 3)
     private String currency;
 
+    @Column(name = "account_number", length = 34)
+    private String accountNumber;
+
     @Version
     @Column(nullable = false)
     private long version;
@@ -118,6 +121,14 @@ public class Account {
 
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+    public String getAccountNumber() {
+        return accountNumber;
+    }
+
+    public void setAccountNumber(String accountNumber) {
+        this.accountNumber = accountNumber;
     }
 
     public Instant getCreatedAt() {
