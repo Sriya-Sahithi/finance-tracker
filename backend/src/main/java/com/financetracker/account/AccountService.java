@@ -75,9 +75,11 @@ public class AccountService {
         Account account = require(id);
         var opening = Money.scale(request.openingBalance());
         var delta = opening.subtract(account.getOpeningBalance());
+        var previousType = account.getType();
+        var previousAccountNumber = account.getAccountNumber();
         account.setName(request.name().trim());
         account.setType(request.type());
-        account.setAccountNumber(resolveUpdatedAccountNumber(account, request));
+        account.setAccountNumber(resolveUpdatedAccountNumber(previousType, previousAccountNumber, request));
         account.setOpeningBalance(opening);
         account.setCurrentBalance(Money.scale(account.getCurrentBalance().add(delta)));
         account.setCurrency(normalizeCurrency(request.currency()));
@@ -111,12 +113,12 @@ public class AccountService {
         return code;
     }
 
-    private String resolveUpdatedAccountNumber(Account account, AccountRequest request) {
+    private String resolveUpdatedAccountNumber(AccountType previousType, String previousAccountNumber, AccountRequest request) {
         if (request.type() != AccountType.BANK) {
             return null;
         }
         if (request.accountNumber() == null) {
-            return account.getType() == AccountType.BANK ? account.getAccountNumber() : null;
+            return previousType == AccountType.BANK ? previousAccountNumber : null;
         }
         return normalizeAccountNumber(request.type(), request.accountNumber());
     }
