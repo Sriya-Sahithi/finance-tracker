@@ -6,6 +6,7 @@ import com.financetracker.category.Category;
 import com.financetracker.category.CategoryService;
 import com.financetracker.category.CategoryType;
 import com.financetracker.common.exception.BadRequestException;
+import com.financetracker.common.exception.ConflictException;
 import com.financetracker.common.exception.ResourceNotFoundException;
 import com.financetracker.common.money.Money;
 import com.financetracker.common.security.CurrentUserService;
@@ -79,6 +80,7 @@ public class TransactionService {
     public TransactionResponse update(Long id, TransactionRequest request) {
         User user = currentUserService.require();
         Transaction transaction = require(id);
+        rejectLinkedLoanTransaction(transaction);
         lockAccounts(user.getId(), transaction.getAccount().getId(),
                 transaction.getTransferAccount() == null ? null : transaction.getTransferAccount().getId());
         AccountLedger.reverse(
@@ -95,6 +97,7 @@ public class TransactionService {
     @Transactional
     public void delete(Long id) {
         Transaction transaction = require(id);
+        rejectLinkedLoanTransaction(transaction);
         lockAccounts(transaction.getUser().getId(), transaction.getAccount().getId(),
                 transaction.getTransferAccount() == null ? null : transaction.getTransferAccount().getId());
         AccountLedger.reverse(
@@ -103,6 +106,12 @@ public class TransactionService {
                 transaction.getAccount(),
                 transaction.getTransferAccount());
         transactionRepository.delete(transaction);
+    }
+
+    private void rejectLinkedLoanTransaction(Transaction transaction) {
+        if (transaction.getLoanId() != null) {
+            throw new ConflictException("This transaction belongs to a loan payment. Change it from the loan instead.");
+        }
     }
 
     private Transaction require(Long id) {

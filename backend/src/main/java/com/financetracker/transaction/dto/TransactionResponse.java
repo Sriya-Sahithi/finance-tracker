@@ -22,6 +22,7 @@ public record TransactionResponse(
         Long categoryId,
         String categoryName,
         CategoryType categoryType,
+        Long loanId,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -40,6 +41,7 @@ public record TransactionResponse(
                 transaction.getCategory() == null ? null : transaction.getCategory().getId(),
                 transaction.getCategory() == null ? null : transaction.getCategory().getName(),
                 transaction.getCategory() == null ? null : transaction.getCategory().getType(),
+                transaction.getLoanId(),
                 transaction.getCreatedAt(),
                 transaction.getUpdatedAt());
     }

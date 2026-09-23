@@ -44,6 +44,9 @@ public class Transaction {
     @JoinColumn(name = "category_id")
     private Category category;
 
+    @Column(name = "loan_id")
+    private Long loanId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private TransactionType type;
@@ -112,6 +115,14 @@ public class Transaction {
 
     public void setCategory(Category category) {
         this.category = category;
+    }
+
+    public Long getLoanId() {
+        return loanId;
+    }
+
+    public void setLoanId(Long loanId) {
+        this.loanId = loanId;
     }
 
     public TransactionType getType() {

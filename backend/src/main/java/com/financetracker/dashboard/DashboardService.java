@@ -5,11 +5,17 @@ import com.financetracker.budget.dto.BudgetResponse;
 import com.financetracker.common.money.Money;
 import com.financetracker.common.security.CurrentUserService;
 import com.financetracker.dashboard.dto.DashboardResponse;
+import com.financetracker.loan.Loan;
+import com.financetracker.loan.LoanCalculationService;
+import com.financetracker.loan.LoanRepository;
+import com.financetracker.loan.PaymentSplit;
 import com.financetracker.transaction.TransactionRepository;
 import com.financetracker.transaction.TransactionType;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,17 +25,23 @@ public class DashboardService {
 
     private final TransactionRepository transactionRepository;
     private final BudgetService budgetService;
+    private final LoanRepository loanRepository;
+    private final LoanCalculationService loanCalculationService;
     private final CurrentUserService currentUserService;
     private final Clock clock;
 
     public DashboardService(
             TransactionRepository transactionRepository,
             BudgetService budgetService,
+            LoanRepository loanRepository,
+            LoanCalculationService loanCalculationService,
             CurrentUserService currentUserService,
             Clock clock
     ) {
         this.transactionRepository = transactionRepository;
         this.budgetService = budgetService;
+        this.loanRepository = loanRepository;
+        this.loanCalculationService = loanCalculationService;
         this.currentUserService = currentUserService;
         this.clock = clock;
     }
@@ -60,11 +72,44 @@ public class DashboardService {
                 totalBudget,
                 budgetUsed,
                 Money.scale(totalBudget.subtract(budgetUsed)),
-                emptyLoans());
+                loanSummary(userId, selected));
     }
 
-    private DashboardResponse.LoanSummary emptyLoans() {
-        return new DashboardResponse.LoanSummary(Money.ZERO, Money.ZERO, Money.ZERO, 0, List.of());
+    private DashboardResponse.LoanSummary loanSummary(Long userId, YearMonth selected) {
+        BigDecimal outstanding = Money.ZERO;
+        BigDecimal obligation = Money.ZERO;
+        BigDecimal upcoming = Money.ZERO;
+        int active = 0;
+        List<DashboardResponse.UpcomingPayment> payments = new ArrayList<>();
+        for (Loan loan : loanRepository.findByUserIdOrderByNameAsc(userId)) {
+            if (loan.getOutstandingPrincipal().signum() <= 0) {
+                continue;
+            }
+            active++;
+            outstanding = outstanding.add(loan.getOutstandingPrincipal());
+            obligation = obligation.add(loan.getEmiAmount());
+            LocalDate due = LocalDate.of(selected.getYear(), selected.getMonthValue(), loan.getPaymentDueDay());
+            if (!due.isBefore(loan.getFirstPaymentDate())) {
+                PaymentSplit split = loanCalculationService.split(
+                        loan.getOutstandingPrincipal(),
+                        loan.getAnnualInterestRate(),
+                        loan.getEmiAmount(),
+                        Money.ZERO);
+                upcoming = upcoming.add(split.total());
+                payments.add(new DashboardResponse.UpcomingPayment(
+                        loan.getId(),
+                        loan.getName(),
+                        due,
+                        split.total(),
+                        Money.scale(loan.getOutstandingPrincipal())));
+            }
+        }
+        return new DashboardResponse.LoanSummary(
+                Money.scale(outstanding),
+                Money.scale(obligation),
+                Money.scale(upcoming),
+                active,
+                payments);
     }
 
     private YearMonth resolve(Integer year, Integer month) {
