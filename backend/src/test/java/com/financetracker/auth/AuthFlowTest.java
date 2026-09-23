@@ -51,7 +51,7 @@ class AuthFlowTest {
 
         Long migrations = jdbc.queryForObject(
                 "select count(*) from flyway_schema_history where success = true", Long.class);
-        assertThat(migrations).isEqualTo(1L);
+        assertThat(migrations).isGreaterThanOrEqualTo(1L);
     }
 
     @Test

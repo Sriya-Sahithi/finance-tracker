@@ -3,6 +3,7 @@ package com.financetracker.auth;
 import com.financetracker.auth.dto.AuthResponse;
 import com.financetracker.auth.dto.LoginRequest;
 import com.financetracker.auth.dto.RegisterRequest;
+import com.financetracker.category.CategoryService;
 import com.financetracker.common.exception.ConflictException;
 import com.financetracker.common.security.CurrentUserService;
 import com.financetracker.common.security.JwtService;
@@ -21,17 +22,20 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final CurrentUserService currentUserService;
+    private final CategoryService categoryService;
 
     public AuthService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            CurrentUserService currentUserService
+            CurrentUserService currentUserService,
+            CategoryService categoryService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.currentUserService = currentUserService;
+        this.categoryService = categoryService;
     }
 
     @Transactional
@@ -46,6 +50,7 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setTokenVersion(0);
         userRepository.save(user);
+        categoryService.createDefaults(user);
         return new AuthResponse(jwtService.generate(user), UserResponse.from(user));
     }
 
