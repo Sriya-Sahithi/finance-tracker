@@ -2,6 +2,7 @@ package com.financetracker.category;
 
 import com.financetracker.category.dto.CategoryRequest;
 import com.financetracker.category.dto.CategoryResponse;
+import com.financetracker.budget.BudgetRepository;
 import com.financetracker.common.exception.BadRequestException;
 import com.financetracker.common.exception.ConflictException;
 import com.financetracker.common.exception.ResourceNotFoundException;
@@ -38,15 +39,18 @@ public class CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final TransactionRepository transactionRepository;
+    private final BudgetRepository budgetRepository;
     private final CurrentUserService currentUserService;
 
     public CategoryService(
             CategoryRepository categoryRepository,
             TransactionRepository transactionRepository,
+            BudgetRepository budgetRepository,
             CurrentUserService currentUserService
     ) {
         this.categoryRepository = categoryRepository;
         this.transactionRepository = transactionRepository;
+        this.budgetRepository = budgetRepository;
         this.currentUserService = currentUserService;
     }
 
@@ -103,8 +107,8 @@ public class CategoryService {
     @Transactional
     public void delete(Long id) {
         Category category = require(id);
-        if (transactionRepository.existsByCategoryId(category.getId())) {
-            throw new ConflictException("Category is used by transactions and cannot be deleted");
+        if (transactionRepository.existsByCategoryId(category.getId()) || budgetRepository.existsByCategoryId(category.getId())) {
+            throw new ConflictException("Category is used by transactions or budgets and cannot be deleted");
         }
         categoryRepository.delete(category);
     }
