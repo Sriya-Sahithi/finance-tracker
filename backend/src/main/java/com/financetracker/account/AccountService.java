@@ -116,7 +116,7 @@ public class AccountService {
             return null;
         }
         if (request.accountNumber() == null) {
-            return account.getAccountNumber();
+            return account.getType() == AccountType.BANK ? account.getAccountNumber() : null;
         }
         return normalizeAccountNumber(request.type(), request.accountNumber());
     }

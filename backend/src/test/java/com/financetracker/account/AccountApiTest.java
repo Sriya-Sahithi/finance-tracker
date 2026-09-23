@@ -122,6 +122,15 @@ class AccountApiTest {
 
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(created.getBody().get("accountNumber").isNull()).isTrue();
+
+        long accountId = created.getBody().get("id").asLong();
+        ResponseEntity<JsonNode> converted = exchange("/api/accounts/" + accountId, HttpMethod.PUT, token, Map.of(
+                "name", "Wallet Bank",
+                "type", "BANK",
+                "openingBalance", "250.00",
+                "currency", "INR"));
+        assertThat(converted.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(converted.getBody().get("accountNumber").isNull()).isTrue();
     }
 
     private String token(String email, String name) {
