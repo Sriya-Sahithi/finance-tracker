@@ -31,6 +31,7 @@ class JwtServiceTest {
         AppProperties properties = new AppProperties(
                 new AppProperties.Jwt("too-short", 60_000),
                 new AppProperties.Cors("http://localhost:3000"),
+                null,
                 "Asia/Kolkata",
                 "INR");
         assertThatThrownBy(() -> new JwtService(properties))
@@ -41,6 +42,7 @@ class JwtServiceTest {
         return new JwtService(new AppProperties(
                 new AppProperties.Jwt("test-jwt-secret-key-must-be-32-chars-min", 60_000),
                 new AppProperties.Cors("http://localhost:3000"),
+                null,
                 "Asia/Kolkata",
                 "INR"));
     }

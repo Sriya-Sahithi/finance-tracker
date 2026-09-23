@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Empty, ErrorText } from "@/components/feedback";
 import { Field } from "@/components/auth-card";
+import { StatementUploadDialog } from "@/components/statement-upload-dialog";
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -55,7 +56,17 @@ export default function AccountsPage() {
           <h1 className="text-2xl font-semibold">Accounts</h1>
           <p className="text-sm text-muted-foreground">Bank, cash, and card balances in INR.</p>
         </div>
-        <Button type="button" onClick={() => setOpen(true)}>Add account</Button>
+        <div className="flex gap-2">
+          {accounts.length > 0 && (
+            <StatementUploadDialog
+              targetType="ACCOUNT"
+              targets={accounts.map((account) => ({ id: account.id, label: account.name }))}
+              triggerLabel="Upload bank statement"
+              onImported={load}
+            />
+          )}
+          <Button type="button" onClick={() => setOpen(true)}>Add account</Button>
+        </div>
       </div>
       <ErrorText message={error} />
       {accounts.length === 0 ? <Empty title="No accounts yet" body="Add a bank account or a cash wallet to start recording transactions." /> : (

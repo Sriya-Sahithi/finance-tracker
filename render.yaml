@@ -1,20 +1,65 @@
+databases:
+  - name: finance-tracker-db
+    databaseName: finance_tracker
+    postgresMajorVersion: "16"
+    region: oregon
+    plan: free
+
 services:
   - type: web
     name: finance-tracker-api
     runtime: docker
+    region: oregon
+    plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     healthCheckPath: /actuator/health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - backend/**
+        - render.yaml
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: finance-tracker-db
+          property: connectionString
       - key: DATABASE_USERNAME
-        sync: false
+        fromDatabase:
+          name: finance-tracker-db
+          property: user
       - key: DATABASE_PASSWORD
-        sync: false
+        fromDatabase:
+          name: finance-tracker-db
+          property: password
       - key: JWT_SECRET
-        sync: false
+        generateValue: true
       - key: CORS_ALLOWED_ORIGINS
-        sync: false
+        fromService:
+          name: finance-tracker-web
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+
+  - type: web
+    name: finance-tracker-web
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    startCommand: npm start -- --hostname 0.0.0.0 --port $PORT
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - frontend/**
+        - render.yaml
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          name: finance-tracker-api
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL

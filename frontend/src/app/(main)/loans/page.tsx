@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Empty, ErrorText } from "@/components/feedback";
 import { Field } from "@/components/auth-card";
+import { StatementUploadDialog } from "@/components/statement-upload-dialog";
 
 const empty = {
   name: "",
@@ -56,7 +57,17 @@ export default function LoansPage() {
           <h1 className="text-2xl font-semibold">Loans</h1>
           <p className="text-sm text-muted-foreground">Reducing-balance EMI. Prepayments shorten the tenure and keep the EMI.</p>
         </div>
-        <Button type="button" onClick={() => setOpen(true)}>Add loan</Button>
+        <div className="flex gap-2">
+          {loans.length > 0 && (
+            <StatementUploadDialog
+              targetType="LOAN"
+              targets={loans.map((loan) => ({ id: loan.id, label: loan.name }))}
+              triggerLabel="Upload loan statement"
+              onImported={load}
+            />
+          )}
+          <Button type="button" onClick={() => setOpen(true)}>Add loan</Button>
+        </div>
       </div>
       <ErrorText message={error} />
       {loans.length === 0 ? <Empty title="No loans" body="Add a home, personal, or other loan to see the EMI and schedule." /> : (

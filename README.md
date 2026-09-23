@@ -7,7 +7,7 @@ Personal finance app for accounts, transactions, monthly budgets, and reducing-b
 One Spring Boot monolith. The Next.js app talks to it over HTTP with a JWT.
 
 ```
-browser → Next.js (Vercel) → Spring Boot API (Render) → PostgreSQL
+browser → Next.js (Render) → Spring Boot API (Render) → PostgreSQL (Render)
 ```
 
 Backend packages follow controller → service → repository → database:
@@ -51,18 +51,18 @@ Backend local defaults live in `backend/src/main/resources/application-dev.yml`.
 | --- | --- | --- |
 | `SPRING_PROFILES_ACTIVE` | API | `dev` locally, `prod` on Render |
 | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` | API dev | Local Postgres connection |
-| `PORT` | API | HTTP port, defaults to 8080. Render sets this. |
-| `DATABASE_URL` | API prod | JDBC URL, for example `jdbc:postgresql://host:5432/finance_tracker` |
-| `DATABASE_USERNAME` | API prod | Database user |
-| `DATABASE_PASSWORD` | API prod | Database password |
-| `JWT_SECRET` | API | HMAC secret, at least 32 characters. Required in production. |
+| `PORT` | API | HTTP port, defaults to 8080. Render sets this. The API binds `0.0.0.0`. |
+| `DATABASE_URL` | API prod | JDBC URL (`jdbc:postgresql://host:5432/finance_tracker`) or Render's `postgresql://` / `postgres://` URL. User and password may be embedded. |
+| `DATABASE_USERNAME` | API prod | Database user. Optional when `DATABASE_URL` already contains the user. |
+| `DATABASE_PASSWORD` | API prod | Database password. Optional when `DATABASE_URL` already contains the password. |
+| `JWT_SECRET` | API | HMAC secret, at least 32 characters. Required in production. The Blueprint generates one. |
 | `JWT_EXPIRATION_MS` | API | Token lifetime, default 24 hours |
-| `CORS_ALLOWED_ORIGINS` | API | Comma-separated browser origins, for example `https://your-app.vercel.app` |
-| `NEXT_PUBLIC_API_URL` | Web | API origin, default `http://localhost:8080` |
+| `CORS_ALLOWED_ORIGINS` | API | Comma-separated browser origins, no trailing slash. On Render this is the site's public URL. |
+| `NEXT_PUBLIC_API_URL` | Web | API origin with no path, default `http://localhost:8080`. Next.js inlines it at build time. On Render this is the API's public URL. |
 
 Copy `frontend/.env.example` to `frontend/.env.local` if the API is not on port 8080.
 
-`DATABASE_URL` must be a JDBC URL. Render's `postgres://` connection string has to be rewritten to `jdbc:postgresql://host:port/database` and the user and password supplied separately. Do not commit secrets.
+A Render internal URL such as `postgresql://user:password@host:5432/finance_tracker` is rewritten to `jdbc:postgresql://host:5432/finance_tracker` before Flyway and the pool start. Query parameters, including `sslmode=require` on an external URL, are kept. Do not commit secrets.
 
 ### Run the API
 
@@ -159,26 +159,39 @@ Import behavior:
 
 ## Deployment
 
-These files configure the hosts. Nothing here deploys automatically.
+`render.yaml` is the Blueprint. It hosts the whole app on Render. Nothing deploys until you apply that file.
 
-### Render (API and Postgres)
+It creates three resources, all in Oregon:
 
-1. Create a managed Postgres database.
-2. Create a web service from this repo using `render.yaml`, or point it at `backend/Dockerfile` with context `backend`.
-3. Set `SPRING_PROFILES_ACTIVE=prod` and the production variables above.
-4. Health check path: `/actuator/health`.
+- Web service `finance-tracker-api` — Docker, `backend/Dockerfile`, context `backend`, health check `/actuator/health`
+- Postgres `finance-tracker-db` — database `finance_tracker`, Postgres 16
+- Web service `finance-tracker-web` — Node 22, root directory `frontend`, build `npm ci && npm run build`, start `npm start -- --hostname 0.0.0.0 --port $PORT`
 
-Flyway runs on boot. Do not enable Hibernate `ddl-auto` in production.
+Plans are omitted, so Render's defaults apply: each web service `starter`, database `basic-256mb`. Those are paid instance types.
 
-### Vercel (Next.js)
+1. In the Render Dashboard, choose **New** → **Blueprint**.
+2. Connect GitHub repo `Viswanadh-Ganti/finance-tracker`, branch `main`.
+3. Render reads `render.yaml` at the repo root. Apply it. There is no prompt for URLs or secrets.
 
-1. Import the GitHub repo.
-2. Set the root directory to `frontend`.
-3. Set `NEXT_PUBLIC_API_URL` to the Render API origin.
-4. Add that origin to `CORS_ALLOWED_ORIGINS` on the API.
+The Blueprint wires the public URLs. You do not create the API first and type them in later:
 
-`frontend/vercel.json` marks the project as Next.js.
+- `NEXT_PUBLIC_API_URL` is the API service's `RENDER_EXTERNAL_URL`
+- `CORS_ALLOWED_ORIGINS` is the site's `RENDER_EXTERNAL_URL`
+
+If the service names are available, those URLs are `https://finance-tracker-api.onrender.com` and `https://finance-tracker-web.onrender.com`. A name collision makes Render add a suffix; the `fromService` links still follow the real hosts.
+
+`NEXT_PUBLIC_API_URL` is compiled into the browser bundle. If the first site build ran before that value was set, open `finance-tracker-web` and deploy it again after the API URL is visible. `CORS_ALLOWED_ORIGINS` is read when the API process starts. If the API booted with an empty origin list, deploy `finance-tracker-api` again.
+
+`DATABASE_URL`, `DATABASE_USERNAME`, and `DATABASE_PASSWORD` come from the Postgres instance. The API accepts Render's `postgresql://` URL and a `jdbc:postgresql://` URL. `JWT_SECRET` is generated (base64, 256 bits, longer than 32 characters). `SPRING_PROFILES_ACTIVE=prod` is set in the Blueprint. Render sets `PORT` on both web services. Flyway runs on boot. Do not enable Hibernate `ddl-auto` in production.
+
+Confirm the API:
+
+```bash
+curl -fsS https://finance-tracker-api.onrender.com/actuator/health
+```
+
+A live service returns HTTP 200 and `{"status":"UP"}`. Use the dashboard host if Render added a suffix. Then open the site URL and register.
 
 ### GitHub
 
-Source of truth for both services. Do not commit `.env.local`, JWT secrets, or database passwords.
+Source of truth for the API, the site, and Postgres. Do not commit `.env.local`, JWT secrets, or database passwords.

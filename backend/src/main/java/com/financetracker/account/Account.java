@@ -1,7 +1,9 @@
 package com.financetracker.account;
 
+import com.financetracker.common.security.EncryptedStringConverter;
 import com.financetracker.user.User;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -50,6 +52,8 @@ public class Account {
     private String currency;
 
     @Column(name = "account_number", length = 34)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "account_number_enc")
     private String accountNumber;
 
     @Version
