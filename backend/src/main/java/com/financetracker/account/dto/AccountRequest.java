@@ -12,6 +12,8 @@ public record AccountRequest(
         @Schema(example = "HDFC Savings")
         @NotBlank @Size(max = 120) String name,
         @NotNull AccountType type,
+        @Schema(example = "1234 5678 9012", description = "Optional bank account number. Spaces and dashes are normalized.")
+        @Size(max = 64) String accountNumber,
         @Schema(example = "10000.00")
         @NotNull @Digits(integer = 15, fraction = 2) BigDecimal openingBalance,
         @Schema(example = "INR", description = "ISO currency code. Only INR is accepted for now.")

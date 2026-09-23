@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { accountApi } from "@/lib/api";
-import { formatInr } from "@/lib/format";
+import { formatInr, maskAccountNumber } from "@/lib/format";
 import type { Account } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ export default function AccountsPage() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState("BANK");
+  const [accountNumber, setAccountNumber] = useState("");
   const [openingBalance, setOpeningBalance] = useState("0.00");
 
   function load() {
@@ -27,9 +28,16 @@ export default function AccountsPage() {
 
   async function create() {
     try {
-      await accountApi.create({ name, type, openingBalance, currency: "INR" });
+      await accountApi.create({
+        name,
+        type,
+        accountNumber: type === "BANK" ? accountNumber : undefined,
+        openingBalance,
+        currency: "INR",
+      });
       setOpen(false);
       setName("");
+      setAccountNumber("");
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create account");
@@ -52,6 +60,9 @@ export default function AccountsPage() {
             <Link key={account.id} href={`/accounts/${account.id}`} className="rounded-lg border bg-white p-5 hover:border-teal-700">
               <p className="text-sm text-muted-foreground">{account.type.replaceAll("_", " ")}</p>
               <h2 className="mt-1 text-lg font-semibold">{account.name}</h2>
+              {account.type === "BANK" && account.accountNumber && (
+                <p className="mt-1 text-sm text-muted-foreground">A/c {maskAccountNumber(account.accountNumber)}</p>
+              )}
               <p className="tabular mt-3 text-2xl font-semibold">{formatInr(account.currentBalance)}</p>
             </Link>
           ))}
@@ -63,13 +74,29 @@ export default function AccountsPage() {
           <div className="space-y-3">
             <Field label="Name"><Input value={name} onChange={(event) => setName(event.target.value)} placeholder="HDFC Savings" /></Field>
             <Field label="Type">
-              <select className="h-10 w-full rounded-md border bg-white px-3 text-sm" value={type} onChange={(event) => setType(event.target.value)}>
+              <select
+                className="h-10 w-full rounded-md border bg-white px-3 text-sm"
+                value={type}
+                onChange={(event) => {
+                  setType(event.target.value);
+                  if (event.target.value !== "BANK") setAccountNumber("");
+                }}
+              >
                 <option value="BANK">Bank</option>
                 <option value="CASH">Cash</option>
                 <option value="CREDIT_CARD">Credit card</option>
                 <option value="OTHER">Other</option>
               </select>
             </Field>
+            {type === "BANK" && (
+              <Field label="Account number">
+                <Input
+                  value={accountNumber}
+                  onChange={(event) => setAccountNumber(event.target.value)}
+                  placeholder="1234 5678 9012"
+                />
+              </Field>
+            )}
             <Field label="Opening balance"><Input value={openingBalance} onChange={(event) => setOpeningBalance(event.target.value)} /></Field>
             <Button type="button" onClick={create}>Save</Button>
           </div>

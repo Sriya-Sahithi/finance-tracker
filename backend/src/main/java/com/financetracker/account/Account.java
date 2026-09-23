@@ -37,6 +37,9 @@ public class Account {
     @Column(nullable = false, length = 32)
     private AccountType type;
 
+    @Column(name = "account_number", length = 34)
+    private String accountNumber;
+
     @Column(name = "opening_balance", nullable = false, precision = 19, scale = 2)
     private BigDecimal openingBalance;
 
@@ -98,6 +101,14 @@ public class Account {
 
     public BigDecimal getOpeningBalance() {
         return openingBalance;
+    }
+
+    public String getAccountNumber() {
+        return accountNumber;
+    }
+
+    public void setAccountNumber(String accountNumber) {
+        this.accountNumber = accountNumber;
     }
 
     public void setOpeningBalance(BigDecimal openingBalance) {

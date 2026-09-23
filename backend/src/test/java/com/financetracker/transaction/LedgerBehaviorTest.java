@@ -46,7 +46,7 @@ class LedgerBehaviorTest {
     void balancesTransfersFiltersAndOwnership() {
         Long version = jdbc.queryForObject(
                 "select max(installed_rank) from flyway_schema_history where success = true", Long.class);
-        assertThat(version).isEqualTo(7L);
+        assertThat(version).isEqualTo(8L);
 
         String ada = token("ada-ledger@example.com", "Ada");
         String grace = token("grace-ledger@example.com", "Grace");

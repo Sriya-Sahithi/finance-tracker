@@ -11,7 +11,9 @@ import com.financetracker.common.security.CurrentUserService;
 import com.financetracker.transaction.TransactionRepository;
 import com.financetracker.transaction.dto.TransactionResponse;
 import com.financetracker.user.User;
+import java.util.Locale;
 import java.util.List;
+import java.util.regex.Pattern;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AccountService {
 
     private static final String SUPPORTED_CURRENCY = "INR";
+    private static final Pattern ACCOUNT_NUMBER_PATTERN = Pattern.compile("^[A-Z0-9]{4,34}$");
 
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
@@ -60,6 +63,7 @@ public class AccountService {
         account.setUser(user);
         account.setName(request.name().trim());
         account.setType(request.type());
+        account.setAccountNumber(normalizeAccountNumber(request.type(), request.accountNumber()));
         account.setOpeningBalance(Money.scale(request.openingBalance()));
         account.setCurrentBalance(Money.scale(request.openingBalance()));
         account.setCurrency(normalizeCurrency(request.currency()));
@@ -73,6 +77,7 @@ public class AccountService {
         var delta = opening.subtract(account.getOpeningBalance());
         account.setName(request.name().trim());
         account.setType(request.type());
+        account.setAccountNumber(resolveUpdatedAccountNumber(account, request));
         account.setOpeningBalance(opening);
         account.setCurrentBalance(Money.scale(account.getCurrentBalance().add(delta)));
         account.setCurrency(normalizeCurrency(request.currency()));
@@ -104,5 +109,29 @@ public class AccountService {
             throw new BadRequestException("Only INR is supported currently");
         }
         return code;
+    }
+
+    private String resolveUpdatedAccountNumber(Account account, AccountRequest request) {
+        if (request.type() != AccountType.BANK) {
+            return null;
+        }
+        if (request.accountNumber() == null) {
+            return account.getAccountNumber();
+        }
+        return normalizeAccountNumber(request.type(), request.accountNumber());
+    }
+
+    private String normalizeAccountNumber(AccountType type, String accountNumber) {
+        if (type != AccountType.BANK || accountNumber == null) {
+            return null;
+        }
+        String normalized = accountNumber.replaceAll("[\\s-]+", "").trim().toUpperCase(Locale.ROOT);
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        if (!ACCOUNT_NUMBER_PATTERN.matcher(normalized).matches()) {
+            throw new BadRequestException("Account number must be 4 to 34 letters or digits");
+        }
+        return normalized;
     }
 }
