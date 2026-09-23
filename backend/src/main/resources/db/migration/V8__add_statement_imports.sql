@@ -19,5 +19,5 @@ CREATE TABLE statement_import_sessions (
 
 CREATE INDEX idx_statement_import_sessions_user_id ON statement_import_sessions (user_id, created_at DESC);
 CREATE UNIQUE INDEX uq_transactions_user_import_row_fingerprint
-    ON transactions (user_id, import_row_fingerprint)
+    ON transactions (user_id, account_id, import_row_fingerprint)
     WHERE import_row_fingerprint IS NOT NULL;

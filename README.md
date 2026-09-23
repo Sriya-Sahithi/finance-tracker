@@ -134,7 +134,10 @@ The initial import feature is intentionally scoped to **CSV bank statements only
 - Header row is required
 - Supported date headers: `Date`, `Transaction Date`, `Txn Date`, `Value Date`, `Posting Date`
 - Supported description headers: `Description`, `Narration`, `Particulars`, `Details`, `Remarks`
-- Supported amount headers: `Debit`, `Credit`, `Amount`, `Transaction Type`, `Reference`, `Account Name`, `Account Number`
+- Supported amount headers: `Debit`, `Credit`, `Amount`
+- Supported transaction-type headers: `Transaction Type`, `Type`, `DR/CR`
+- Supported reference headers: `Reference`, `Ref`, `Ref No`, `Cheque No`, `UTR`, `Transaction ID`
+- Supported account metadata headers: `Account Name`, `Account Number`, `Account No`, `Acct No`
 - Dates are parsed deterministically as `yyyy-MM-dd`, `dd/MM/yyyy`, `dd-MM-yyyy`, `yyyy/MM/dd`, or `dd/MM/yy`
 - The preview detects account name/account number metadata when present and suggests a matching existing account, but confirmation still requires the user to explicitly choose the destination account
 

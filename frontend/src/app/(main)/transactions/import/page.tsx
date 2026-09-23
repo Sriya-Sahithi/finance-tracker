@@ -84,6 +84,8 @@ export default function StatementImportPage() {
         rowFingerprints: selectedFingerprints,
       });
       setSuccess(buildSuccessMessage(result));
+      setPreview(null);
+      setSelectedFingerprints([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not confirm import");
     } finally {

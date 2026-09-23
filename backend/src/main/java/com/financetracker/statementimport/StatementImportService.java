@@ -121,7 +121,7 @@ public class StatementImportService {
 
         List<String> existingFingerprints = requestedFingerprints.isEmpty()
                 ? List.of()
-                : transactionRepository.findExistingImportRowFingerprints(user.getId(), new ArrayList<>(requestedFingerprints));
+                : transactionRepository.findExistingImportRowFingerprints(user.getId(), account.getId(), new ArrayList<>(requestedFingerprints));
         LinkedHashSet<String> duplicates = new LinkedHashSet<>(existingFingerprints);
         Category incomeCategory = categoryService.requireImportCategory(user.getId(), CategoryType.INCOME);
         Category expenseCategory = categoryService.requireImportCategory(user.getId(), CategoryType.EXPENSE);
@@ -155,6 +155,7 @@ public class StatementImportService {
         }
         transactionRepository.saveAll(toSave);
         if (!toSave.isEmpty()) {
+            accountService.save(account);
             session.setConfirmedAt(Instant.now());
         }
 

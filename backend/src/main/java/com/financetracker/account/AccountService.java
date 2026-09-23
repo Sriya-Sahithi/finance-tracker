@@ -95,6 +95,10 @@ public class AccountService {
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
     }
 
+    public Account save(Account account) {
+        return accountRepository.save(account);
+    }
+
     @Transactional(readOnly = true)
     public List<Account> findOwned(Long userId) {
         return accountRepository.findByUserIdOrderByNameAsc(userId);
