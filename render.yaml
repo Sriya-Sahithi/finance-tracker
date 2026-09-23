@@ -1,3 +1,8 @@
+databases:
+  - name: finance-tracker-db
+    databaseName: finance_tracker
+    postgresMajorVersion: "16"
+
 services:
   - type: web
     name: finance-tracker-api
@@ -9,12 +14,18 @@ services:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: finance-tracker-db
+          property: connectionString
       - key: DATABASE_USERNAME
-        sync: false
+        fromDatabase:
+          name: finance-tracker-db
+          property: user
       - key: DATABASE_PASSWORD
-        sync: false
+        fromDatabase:
+          name: finance-tracker-db
+          property: password
       - key: JWT_SECRET
-        sync: false
+        generateValue: true
       - key: CORS_ALLOWED_ORIGINS
         sync: false
