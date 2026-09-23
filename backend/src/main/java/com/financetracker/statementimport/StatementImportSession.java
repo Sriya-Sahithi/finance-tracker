@@ -112,4 +112,12 @@ public class StatementImportSession {
     public void setConfirmedAt(Instant confirmedAt) {
         this.confirmedAt = confirmedAt;
     }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
 }

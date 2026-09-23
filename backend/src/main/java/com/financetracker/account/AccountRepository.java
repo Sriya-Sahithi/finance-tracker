@@ -14,6 +14,10 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
     Optional<Account> findByIdAndUserId(Long id, Long userId);
 
+    Optional<Account> findFirstByUserIdAndAccountNumber(Long userId, String accountNumber);
+
+    List<Account> findByUserIdAndNameIgnoreCase(Long userId, String name);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from Account a where a.id = :id and a.user.id = :userId")
     Optional<Account> lockByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);

@@ -38,10 +38,10 @@ export default function StatementImportPage() {
     const selected = new Set(selectedFingerprints);
     for (const row of preview.rows) {
       if (!selected.has(row.fingerprint)) continue;
-      if (row.type === "INCOME") income += Number(row.amount);
-      else expense += Number(row.amount);
+      if (row.type === "INCOME") income += toMinorUnits(row.amount);
+      else expense += toMinorUnits(row.amount);
     }
-    return { income: income.toFixed(2), expense: expense.toFixed(2) };
+    return { income: fromMinorUnits(income), expense: fromMinorUnits(expense) };
   }, [preview, selectedFingerprints]);
 
   async function handlePreview() {
@@ -254,4 +254,18 @@ function buildSuccessMessage(result: StatementImportConfirmResponse) {
     return `No new rows were imported. ${result.duplicateCount} selected row(s) were already imported earlier.`;
   }
   return `Imported ${result.importedCount} row(s). ${result.duplicateCount} duplicate row(s) were skipped. Updated account balance: ${formatInr(result.accountBalance)}.`;
+}
+
+function toMinorUnits(amount: string) {
+  const [whole, fraction = ""] = amount.split(".");
+  const cents = `${fraction}00`.slice(0, 2);
+  return Number.parseInt(whole, 10) * 100 + Number.parseInt(cents, 10);
+}
+
+function fromMinorUnits(amount: number) {
+  const negative = amount < 0;
+  const absolute = Math.abs(amount);
+  const whole = Math.floor(absolute / 100);
+  const cents = String(absolute % 100).padStart(2, "0");
+  return `${negative ? "-" : ""}${whole}.${cents}`;
 }

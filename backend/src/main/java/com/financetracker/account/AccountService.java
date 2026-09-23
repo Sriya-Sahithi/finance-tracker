@@ -104,6 +104,16 @@ public class AccountService {
         return accountRepository.findByUserIdOrderByNameAsc(userId);
     }
 
+    @Transactional(readOnly = true)
+    public Account findOwnedByAccountNumber(Long userId, String accountNumber) {
+        return accountRepository.findFirstByUserIdAndAccountNumber(userId, accountNumber).orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Account> findOwnedByName(Long userId, String name) {
+        return accountRepository.findByUserIdAndNameIgnoreCase(userId, name);
+    }
+
     private Account require(Long id) {
         return accountRepository.findByIdAndUserId(id, currentUserService.requireId())
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));

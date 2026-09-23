@@ -16,7 +16,6 @@ import com.financetracker.statementimport.dto.StatementImportConfirmRequest;
 import com.financetracker.statementimport.dto.StatementImportConfirmResponse;
 import com.financetracker.statementimport.dto.StatementImportPreviewResponse;
 import com.financetracker.transaction.AccountLedger;
-import com.financetracker.transaction.Transaction;
 import com.financetracker.transaction.TransactionRepository;
 import com.financetracker.transaction.TransactionType;
 import com.financetracker.user.User;
@@ -26,12 +25,15 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.sql.Timestamp;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -50,6 +52,7 @@ public class StatementImportService {
     private final CategoryService categoryService;
     private final CurrentUserService currentUserService;
     private final ObjectMapper objectMapper;
+    private final JdbcTemplate jdbcTemplate;
 
     public StatementImportService(
             CsvStatementParser csvStatementParser,
@@ -58,7 +61,8 @@ public class StatementImportService {
             AccountService accountService,
             CategoryService categoryService,
             CurrentUserService currentUserService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            JdbcTemplate jdbcTemplate
     ) {
         this.csvStatementParser = csvStatementParser;
         this.sessionRepository = sessionRepository;
@@ -67,6 +71,7 @@ public class StatementImportService {
         this.categoryService = categoryService;
         this.currentUserService = currentUserService;
         this.objectMapper = objectMapper;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Transactional
@@ -126,35 +131,34 @@ public class StatementImportService {
         Category incomeCategory = categoryService.requireImportCategory(user.getId(), CategoryType.INCOME);
         Category expenseCategory = categoryService.requireImportCategory(user.getId(), CategoryType.EXPENSE);
 
-        List<Transaction> toSave = new ArrayList<>();
+        int importedCount = 0;
         BigDecimal importedIncome = Money.ZERO;
         BigDecimal importedExpense = Money.ZERO;
         for (String fingerprint : requestedFingerprints) {
+            StoredPreviewRow row = rowsByFingerprint.get(fingerprint);
             if (duplicates.contains(fingerprint)) {
                 continue;
             }
-            StoredPreviewRow row = rowsByFingerprint.get(fingerprint);
-            Transaction transaction = new Transaction();
-            transaction.setUser(user);
-            transaction.setAccount(account);
-            transaction.setCategory(row.type() == TransactionType.INCOME ? incomeCategory : expenseCategory);
-            transaction.setType(row.type());
-            transaction.setAmount(Money.scale(row.amount()));
-            transaction.setTransactionDate(row.transactionDate());
-            transaction.setDescription(row.description());
-            transaction.setNotes(buildNotes(row.reference()));
-            transaction.setImportSessionId(session.getId());
-            transaction.setImportRowFingerprint(row.fingerprint());
-            AccountLedger.apply(transaction.getType(), transaction.getAmount(), account, null);
-            toSave.add(transaction);
+            int inserted = insertImportedTransaction(
+                    user.getId(),
+                    account.getId(),
+                    row.type() == TransactionType.INCOME ? incomeCategory.getId() : expenseCategory.getId(),
+                    session.getId(),
+                    row,
+                    buildNotes(row.reference()));
+            if (inserted == 0) {
+                duplicates.add(fingerprint);
+                continue;
+            }
+            AccountLedger.apply(row.type(), row.amount(), account, null);
+            importedCount++;
             if (row.type() == TransactionType.INCOME) {
                 importedIncome = Money.scale(importedIncome.add(row.amount()));
             } else {
                 importedExpense = Money.scale(importedExpense.add(row.amount()));
             }
         }
-        transactionRepository.saveAll(toSave);
-        if (!toSave.isEmpty()) {
+        if (importedCount > 0) {
             accountService.save(account);
             session.setConfirmedAt(Instant.now());
         }
@@ -163,7 +167,7 @@ public class StatementImportService {
                 session.getId(),
                 account.getId(),
                 request.rowFingerprints().size(),
-                toSave.size(),
+                importedCount,
                 duplicates.size(),
                 importedIncome,
                 importedExpense,
@@ -222,20 +226,57 @@ public class StatementImportService {
                         expenseTotal));
     }
 
+
+    private int insertImportedTransaction(
+            Long userId,
+            Long accountId,
+            Long categoryId,
+            UUID sessionId,
+            StoredPreviewRow row,
+            String notes
+    ) {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+        return jdbcTemplate.update("""
+                insert into transactions (
+                    user_id,
+                    account_id,
+                    category_id,
+                    type,
+                    amount,
+                    transaction_date,
+                    description,
+                    notes,
+                    import_session_id,
+                    import_row_fingerprint,
+                    created_at,
+                    updated_at
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                on conflict (user_id, account_id, import_row_fingerprint)
+                where import_row_fingerprint is not null do nothing
+                """,
+                userId,
+                accountId,
+                categoryId,
+                row.type().name(),
+                row.amount(),
+                row.transactionDate(),
+                row.description(),
+                notes,
+                sessionId,
+                row.fingerprint(),
+                Timestamp.from(now),
+                Timestamp.from(now));
+    }
+
     private SuggestedAccount suggestAccount(Long userId, String accountName, String accountNumber) {
-        List<Account> accounts = accountService.findOwned(userId);
         if (accountNumber != null) {
-            String normalizedNumber = normalizeAccountNumber(accountNumber);
-            for (Account account : accounts) {
-                if (account.getAccountNumber() != null && normalizeAccountNumber(account.getAccountNumber()).equals(normalizedNumber)) {
-                    return new SuggestedAccount(account.getId(), account.getName(), "ACCOUNT_NUMBER");
-                }
+            Account match = accountService.findOwnedByAccountNumber(userId, accountNumber);
+            if (match != null) {
+                return new SuggestedAccount(match.getId(), match.getName(), "ACCOUNT_NUMBER");
             }
         }
         if (accountName != null) {
-            List<Account> matches = accounts.stream()
-                    .filter(account -> account.getName().trim().equalsIgnoreCase(accountName.trim()))
-                    .toList();
+            List<Account> matches = accountService.findOwnedByName(userId, accountName.trim());
             if (matches.size() == 1) {
                 Account match = matches.get(0);
                 return new SuggestedAccount(match.getId(), match.getName(), "ACCOUNT_NAME");
