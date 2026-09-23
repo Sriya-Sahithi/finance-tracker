@@ -9,6 +9,7 @@ services:
     name: finance-tracker-api
     runtime: docker
     region: oregon
+    plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     healthCheckPath: /actuator/health
