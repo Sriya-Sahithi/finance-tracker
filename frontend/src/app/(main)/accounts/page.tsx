@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { accountApi } from "@/lib/api";
 import { formatInr, maskAccountNumber } from "@/lib/format";
-import { maskAccountNumber } from "@/lib/account-number";
 import type { Account } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
