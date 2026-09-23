@@ -1,0 +1,16 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+app:
+  jwt:
+    secret: test-jwt-secret-key-must-be-32-chars-min
+    expiration-ms: 3600000
+  cors:
+    allowed-origins: http://localhost:3000
+
+logging:
+  level:
+    com.financetracker: INFO
+    org.hibernate.SQL: WARN
