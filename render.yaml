@@ -3,6 +3,7 @@ databases:
     databaseName: finance_tracker
     postgresMajorVersion: "16"
     region: oregon
+    plan: free
 
 services:
   - type: web
@@ -13,6 +14,7 @@ services:
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     healthCheckPath: /actuator/health
+    autoDeploy: true
     buildFilter:
       paths:
         - backend/**
@@ -44,9 +46,11 @@ services:
     name: finance-tracker-web
     runtime: node
     region: oregon
+    plan: free
     rootDir: frontend
     buildCommand: npm ci && npm run build
     startCommand: npm start -- --hostname 0.0.0.0 --port $PORT
+    autoDeploy: true
     buildFilter:
       paths:
         - frontend/**
