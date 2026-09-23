@@ -12,6 +12,7 @@ export type Account = {
   id: number;
   name: string;
   type: "BANK" | "CASH" | "CREDIT_CARD" | "OTHER";
+  accountNumber: string | null;
   openingBalance: string;
   currentBalance: string;
   currency: string;

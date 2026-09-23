@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { accountApi } from "@/lib/api";
+import { formatDate, formatInr, maskAccountNumber } from "@/lib/format";
 import { formatDate, formatInr } from "@/lib/format";
 import { maskAccountNumber } from "@/lib/account-number";
 import type { Account, Transaction } from "@/lib/types";
@@ -29,6 +30,9 @@ export default function AccountDetailPage() {
           <div>
             <p className="text-sm text-muted-foreground">{account.type.replaceAll("_", " ")} · {account.currency}</p>
             <h1 className="text-2xl font-semibold">{account.name}</h1>
+            {account.type === "BANK" && account.accountNumber && (
+              <p className="mt-1 text-sm text-muted-foreground">Account {maskAccountNumber(account.accountNumber)}</p>
+            )}
             {account.accountNumber && <p className="mt-1 text-sm text-muted-foreground">Account: {maskAccountNumber(account.accountNumber)}</p>}
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
