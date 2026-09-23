@@ -10,9 +10,11 @@ public record AccountResponse(
         Long id,
         String name,
         AccountType type,
+        String accountNumber,
         BigDecimal openingBalance,
         BigDecimal currentBalance,
         String currency,
+        String accountNumber,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -21,9 +23,11 @@ public record AccountResponse(
                 account.getId(),
                 account.getName(),
                 account.getType(),
+                account.getAccountNumber(),
                 Money.scale(account.getOpeningBalance()),
                 Money.scale(account.getCurrentBalance()),
                 account.getCurrency(),
+                account.getAccountNumber(),
                 account.getCreatedAt(),
                 account.getUpdatedAt());
     }

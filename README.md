@@ -71,7 +71,7 @@ cd backend
 mvn spring-boot:run
 ```
 
-The dev profile is the default. Flyway applies `backend/src/main/resources/db/migration/V1__create_users.sql` through `V7__create_loan_payments.sql` on startup. Production sets `ddl-auto` to `none`, so Hibernate does not create or update tables.
+The dev profile is the default. Flyway applies `backend/src/main/resources/db/migration/V1__create_users.sql` through `V8__add_statement_imports.sql` on startup. Production sets `ddl-auto` to `none`, so Hibernate does not create or update tables.
 
 - Health: `GET /actuator/health`
 - OpenAPI: `GET /v3/api-docs`
@@ -110,6 +110,8 @@ Unit tests cover EMI (standard rate, zero interest, other rates and tenures, lar
 | GET, POST | `/api/accounts`, `/api/accounts/{id}` | PUT and DELETE as well |
 | GET, POST | `/api/categories`, `/api/categories/{id}` | PUT and DELETE as well |
 | GET, POST | `/api/transactions`, `/api/transactions/{id}` | Page, search, category, account, date range, type |
+| POST | `/api/statement-imports/preview` | Multipart CSV upload. Returns a reviewable preview only. |
+| POST | `/api/statement-imports/{sessionId}/confirm` | Imports selected preview rows into a chosen existing account. |
 | GET, POST | `/api/budgets`, `/api/budgets/{id}` | Monthly expense budgets |
 | GET, POST | `/api/loans`, `/api/loans/{id}` | EMI calculated on the server |
 | GET | `/api/loans/{id}/schedule` | Actual payments plus projected rows |
@@ -121,6 +123,39 @@ Unit tests cover EMI (standard rate, zero interest, other rates and tenures, lar
 Amounts in JSON are decimal strings such as `"1200.00"`. The UI formats them as `₹1,20,000.00`.
 
 Every query is scoped by the authenticated user id.
+
+
+## CSV bank-statement import
+
+The initial import feature is intentionally scoped to **CSV bank statements only**. It does not parse PDFs or CIBIL reports.
+
+### Supported CSV shape
+
+- Header row is required
+- Supported date headers: `Date`, `Transaction Date`, `Txn Date`, `Value Date`, `Posting Date`
+- Supported description headers: `Description`, `Narration`, `Particulars`, `Details`, `Remarks`
+- Supported amount headers: `Debit`, `Credit`, `Amount`
+- Supported transaction-type headers: `Transaction Type`, `Type`, `DR/CR`
+- Supported reference headers: `Reference`, `Ref`, `Ref No`, `Cheque No`, `UTR`, `Transaction ID`
+- Supported account metadata headers: `Account Name`, `Account Number`, `Account No`, `Acct No`
+- Dates are parsed deterministically as `yyyy-MM-dd`, `dd/MM/yyyy`, `dd-MM-yyyy`, `yyyy/MM/dd`, or `dd/MM/yy`
+- The preview detects account name/account number metadata when present and suggests a matching existing account, but confirmation still requires the user to explicitly choose the destination account
+
+Example CSV:
+
+```csv
+Date,Narration,Debit,Credit,Reference,Account Number,Account Name
+2026-03-01,Coffee,120.50,,UPI-1,1234567890,HDFC Savings
+2026-03-02,Salary,,2000.00,NEFT-9,1234567890,HDFC Savings
+```
+
+Import behavior:
+
+- Preview does **not** mutate balances or create transactions
+- Confirmation imports only the selected valid rows
+- Imported rows are stored as income or expense transactions using the user's existing income/expense categories (preferring `Other Income` / `Other Expense`)
+- Duplicate protection uses a stable row fingerprint based on the detected account metadata plus normalized row values; re-confirming the same row is skipped instead of creating a duplicate transaction
+- The uploaded file must be a `.csv` file and must be 1 MB or smaller
 
 ## Deployment
 

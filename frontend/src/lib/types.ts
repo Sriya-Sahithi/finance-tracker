@@ -12,9 +12,11 @@ export type Account = {
   id: number;
   name: string;
   type: "BANK" | "CASH" | "CREDIT_CARD" | "OTHER";
+  accountNumber: string | null;
   openingBalance: string;
   currentBalance: string;
   currency: string;
+  accountNumber: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -148,6 +150,48 @@ export type MonthlyReport = {
   }[];
   loanBalanceOverTime: { year: number; month: number; amount: string }[];
   interestVsPrincipal: { year: number; month: number; interest: string; principal: string }[];
+};
+
+export type StatementImportPreview = {
+  sessionId: string;
+  detectedAccount: {
+    accountName: string | null;
+    accountNumber: string | null;
+    suggestedAccountId: number | null;
+    suggestedAccountName: string | null;
+    matchedBy: "ACCOUNT_NUMBER" | "ACCOUNT_NAME" | null;
+  };
+  rows: {
+    rowNumber: number;
+    fingerprint: string;
+    transactionDate: string;
+    description: string;
+    reference: string | null;
+    type: "INCOME" | "EXPENSE";
+    amount: string;
+  }[];
+  skippedRows: { rowNumber: number; reason: string }[];
+  warnings: string[];
+  summary: {
+    totalRows: number;
+    validRows: number;
+    skippedRows: number;
+    incomeCount: number;
+    incomeTotal: string;
+    expenseCount: number;
+    expenseTotal: string;
+  };
+};
+
+export type StatementImportConfirmResponse = {
+  sessionId: string;
+  accountId: number;
+  requestedCount: number;
+  importedCount: number;
+  duplicateCount: number;
+  incomeImported: string;
+  expenseImported: string;
+  accountBalance: string;
 };
 
 export type ApiFieldError = { field: string; message: string };

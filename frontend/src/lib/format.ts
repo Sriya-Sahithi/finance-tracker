@@ -22,6 +22,12 @@ export function formatDate(value: string | null | undefined) {
   });
 }
 
+export function maskAccountNumber(value: string | null | undefined) {
+  if (!value) return "—";
+  if (value.length <= 4) return value;
+  return `••••${value.slice(-4)}`;
+}
+
 export const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
