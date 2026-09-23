@@ -2,6 +2,7 @@ services:
   - type: web
     name: finance-tracker-api
     runtime: docker
+    plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     healthCheckPath: /actuator/health
