@@ -14,6 +14,7 @@ public record AccountResponse(
         BigDecimal openingBalance,
         BigDecimal currentBalance,
         String currency,
+        String accountNumber,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -26,6 +27,7 @@ public record AccountResponse(
                 Money.scale(account.getOpeningBalance()),
                 Money.scale(account.getCurrentBalance()),
                 account.getCurrency(),
+                account.getAccountNumber(),
                 account.getCreatedAt(),
                 account.getUpdatedAt());
     }

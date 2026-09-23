@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -67,7 +68,10 @@ export default function TransactionsPage() {
           <h1 className="text-2xl font-semibold">Transactions</h1>
           <p className="text-sm text-muted-foreground">Transfers move money between accounts and are excluded from income and expenses.</p>
         </div>
-        <Button type="button" onClick={() => { setEditing(null); setOpen(true); }}>Add transaction</Button>
+        <div className="flex gap-2">
+          <Button asChild type="button" variant="outline"><Link href="/transactions/import">Import CSV</Link></Button>
+          <Button type="button" onClick={() => { setEditing(null); setOpen(true); }}>Add transaction</Button>
+        </div>
       </div>
       <ErrorText message={error} />
       <div className="flex flex-wrap gap-2">

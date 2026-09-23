@@ -14,6 +14,7 @@ import com.financetracker.user.User;
 import java.util.Locale;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.Locale;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,6 +68,7 @@ public class AccountService {
         account.setOpeningBalance(Money.scale(request.openingBalance()));
         account.setCurrentBalance(Money.scale(request.openingBalance()));
         account.setCurrency(normalizeCurrency(request.currency()));
+        account.setAccountNumber(normalizeAccountNumber(request.accountNumber()));
         return AccountResponse.from(accountRepository.save(account));
     }
 
@@ -83,6 +85,7 @@ public class AccountService {
         account.setOpeningBalance(opening);
         account.setCurrentBalance(Money.scale(account.getCurrentBalance().add(delta)));
         account.setCurrency(normalizeCurrency(request.currency()));
+        account.setAccountNumber(normalizeAccountNumber(request.accountNumber()));
         return AccountResponse.from(account);
     }
 
@@ -98,6 +101,25 @@ public class AccountService {
     public Account lockOwned(Long userId, Long accountId) {
         return accountRepository.lockByIdAndUserId(accountId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+    }
+
+    public Account save(Account account) {
+        return accountRepository.save(account);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Account> findOwned(Long userId) {
+        return accountRepository.findByUserIdOrderByNameAsc(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public Account findOwnedByAccountNumber(Long userId, String accountNumber) {
+        return accountRepository.findFirstByUserIdAndAccountNumber(userId, accountNumber).orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Account> findOwnedByName(Long userId, String name) {
+        return accountRepository.findByUserIdAndNameIgnoreCase(userId, name);
     }
 
     private Account require(Long id) {
@@ -135,5 +157,10 @@ public class AccountService {
             throw new BadRequestException("Account number must be 4 to 34 letters or digits");
         }
         return normalized;
+    private String normalizeAccountNumber(String accountNumber) {
+        if (accountNumber == null || accountNumber.isBlank()) {
+            return null;
+        }
+        return accountNumber.trim().replaceAll("[^A-Za-z0-9]", "").toUpperCase(Locale.ROOT);
     }
 }

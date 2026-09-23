@@ -82,4 +82,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
             @Param("start") LocalDate start,
             @Param("end") LocalDate end
     );
+
+    @Query("select t.importRowFingerprint from Transaction t where t.user.id = :userId and t.account.id = :accountId and t.importRowFingerprint in :fingerprints")
+    List<String> findExistingImportRowFingerprints(@Param("userId") Long userId, @Param("accountId") Long accountId, @Param("fingerprints") List<String> fingerprints);
 }

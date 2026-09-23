@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { accountApi } from "@/lib/api";
 import { formatInr, maskAccountNumber } from "@/lib/format";
+import { formatInr } from "@/lib/format";
+import { maskAccountNumber } from "@/lib/account-number";
 import type { Account } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +21,7 @@ export default function AccountsPage() {
   const [type, setType] = useState("BANK");
   const [accountNumber, setAccountNumber] = useState("");
   const [openingBalance, setOpeningBalance] = useState("0.00");
+  const [accountNumber, setAccountNumber] = useState("");
 
   function load() {
     accountApi.list().then(setAccounts).catch((err) => setError(err.message));
@@ -35,6 +38,7 @@ export default function AccountsPage() {
         openingBalance,
         currency: "INR",
       });
+      await accountApi.create({ name, type, openingBalance, currency: "INR", accountNumber: accountNumber || null });
       setOpen(false);
       setName("");
       setAccountNumber("");
@@ -63,6 +67,7 @@ export default function AccountsPage() {
               {account.type === "BANK" && account.accountNumber && (
                 <p className="mt-1 text-sm text-muted-foreground">A/c {maskAccountNumber(account.accountNumber)}</p>
               )}
+              {account.accountNumber && <p className="mt-1 text-sm text-muted-foreground">{maskAccountNumber(account.accountNumber)}</p>}
               <p className="tabular mt-3 text-2xl font-semibold">{formatInr(account.currentBalance)}</p>
             </Link>
           ))}
@@ -98,6 +103,7 @@ export default function AccountsPage() {
               </Field>
             )}
             <Field label="Opening balance"><Input value={openingBalance} onChange={(event) => setOpeningBalance(event.target.value)} /></Field>
+            <Field label="Account number (optional)"><Input value={accountNumber} onChange={(event) => setAccountNumber(event.target.value)} placeholder="1234567890" /></Field>
             <Button type="button" onClick={create}>Save</Button>
           </div>
         </DialogContent>
@@ -105,3 +111,4 @@ export default function AccountsPage() {
     </div>
   );
 }
+
