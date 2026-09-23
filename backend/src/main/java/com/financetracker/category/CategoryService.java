@@ -118,6 +118,17 @@ public class CategoryService {
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
     }
 
+    @Transactional(readOnly = true)
+    public Category requireImportCategory(Long userId, CategoryType type) {
+        return categoryRepository.findByUserIdAndTypeOrderByNameAsc(userId, type).stream()
+                .filter(category -> type == CategoryType.INCOME
+                        ? "Other Income".equalsIgnoreCase(category.getName())
+                        : "Other Expense".equalsIgnoreCase(category.getName()))
+                .findFirst()
+                .or(() -> categoryRepository.findByUserIdAndTypeOrderByNameAsc(userId, type).stream().findFirst())
+                .orElseThrow(() -> new BadRequestException("Create at least one " + type.name().toLowerCase() + " category before importing statements"));
+    }
+
     private Category require(Long id) {
         return requireOwned(id, currentUserService.requireId());
     }

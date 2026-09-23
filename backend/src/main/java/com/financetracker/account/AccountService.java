@@ -63,6 +63,7 @@ public class AccountService {
         account.setOpeningBalance(Money.scale(request.openingBalance()));
         account.setCurrentBalance(Money.scale(request.openingBalance()));
         account.setCurrency(normalizeCurrency(request.currency()));
+        account.setAccountNumber(normalizeAccountNumber(request.accountNumber()));
         return AccountResponse.from(accountRepository.save(account));
     }
 
@@ -76,6 +77,7 @@ public class AccountService {
         account.setOpeningBalance(opening);
         account.setCurrentBalance(Money.scale(account.getCurrentBalance().add(delta)));
         account.setCurrency(normalizeCurrency(request.currency()));
+        account.setAccountNumber(normalizeAccountNumber(request.accountNumber()));
         return AccountResponse.from(account);
     }
 
@@ -93,6 +95,11 @@ public class AccountService {
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
     }
 
+    @Transactional(readOnly = true)
+    public List<Account> findOwned(Long userId) {
+        return accountRepository.findByUserIdOrderByNameAsc(userId);
+    }
+
     private Account require(Long id) {
         return accountRepository.findByIdAndUserId(id, currentUserService.requireId())
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
@@ -104,5 +111,12 @@ public class AccountService {
             throw new BadRequestException("Only INR is supported currently");
         }
         return code;
+    }
+
+    private String normalizeAccountNumber(String accountNumber) {
+        if (accountNumber == null || accountNumber.isBlank()) {
+            return null;
+        }
+        return accountNumber.trim();
     }
 }

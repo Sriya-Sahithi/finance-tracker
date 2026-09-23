@@ -63,6 +63,12 @@ public class Transaction {
     @Column(length = 1000)
     private String notes;
 
+    @Column(name = "import_session_id")
+    private java.util.UUID importSessionId;
+
+    @Column(name = "import_row_fingerprint", length = 64)
+    private String importRowFingerprint;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -163,6 +169,22 @@ public class Transaction {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public java.util.UUID getImportSessionId() {
+        return importSessionId;
+    }
+
+    public void setImportSessionId(java.util.UUID importSessionId) {
+        this.importSessionId = importSessionId;
+    }
+
+    public String getImportRowFingerprint() {
+        return importRowFingerprint;
+    }
+
+    public void setImportRowFingerprint(String importRowFingerprint) {
+        this.importRowFingerprint = importRowFingerprint;
     }
 
     public Instant getCreatedAt() {

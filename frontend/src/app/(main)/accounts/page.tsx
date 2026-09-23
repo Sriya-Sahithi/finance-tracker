@@ -18,6 +18,7 @@ export default function AccountsPage() {
   const [name, setName] = useState("");
   const [type, setType] = useState("BANK");
   const [openingBalance, setOpeningBalance] = useState("0.00");
+  const [accountNumber, setAccountNumber] = useState("");
 
   function load() {
     accountApi.list().then(setAccounts).catch((err) => setError(err.message));
@@ -27,9 +28,10 @@ export default function AccountsPage() {
 
   async function create() {
     try {
-      await accountApi.create({ name, type, openingBalance, currency: "INR" });
+      await accountApi.create({ name, type, openingBalance, currency: "INR", accountNumber: accountNumber || null });
       setOpen(false);
       setName("");
+      setAccountNumber("");
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create account");
@@ -52,6 +54,7 @@ export default function AccountsPage() {
             <Link key={account.id} href={`/accounts/${account.id}`} className="rounded-lg border bg-white p-5 hover:border-teal-700">
               <p className="text-sm text-muted-foreground">{account.type.replaceAll("_", " ")}</p>
               <h2 className="mt-1 text-lg font-semibold">{account.name}</h2>
+              {account.accountNumber && <p className="mt-1 text-sm text-muted-foreground">{maskAccountNumber(account.accountNumber)}</p>}
               <p className="tabular mt-3 text-2xl font-semibold">{formatInr(account.currentBalance)}</p>
             </Link>
           ))}
@@ -71,10 +74,17 @@ export default function AccountsPage() {
               </select>
             </Field>
             <Field label="Opening balance"><Input value={openingBalance} onChange={(event) => setOpeningBalance(event.target.value)} /></Field>
+            <Field label="Account number (optional)"><Input value={accountNumber} onChange={(event) => setAccountNumber(event.target.value)} placeholder="1234567890" /></Field>
             <Button type="button" onClick={create}>Save</Button>
           </div>
         </DialogContent>
       </Dialog>
     </div>
   );
+}
+
+function maskAccountNumber(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.length <= 4) return trimmed;
+  return `${"•".repeat(Math.max(trimmed.length - 4, 4))}${trimmed.slice(-4)}`;
 }

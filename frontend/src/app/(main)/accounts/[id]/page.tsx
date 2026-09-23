@@ -28,6 +28,7 @@ export default function AccountDetailPage() {
           <div>
             <p className="text-sm text-muted-foreground">{account.type.replaceAll("_", " ")} · {account.currency}</p>
             <h1 className="text-2xl font-semibold">{account.name}</h1>
+            {account.accountNumber && <p className="mt-1 text-sm text-muted-foreground">Account: {maskAccountNumber(account.accountNumber)}</p>}
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Stat label="Current balance" value={formatInr(account.currentBalance)} />
@@ -53,4 +54,10 @@ export default function AccountDetailPage() {
       )}
     </div>
   );
+}
+
+function maskAccountNumber(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.length <= 4) return trimmed;
+  return `${"•".repeat(Math.max(trimmed.length - 4, 4))}${trimmed.slice(-4)}`;
 }
