@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { accountApi } from "@/lib/api";
 import { formatDate, formatInr, maskAccountNumber } from "@/lib/format";
-import { maskAccountNumber } from "@/lib/account-number";
 import type { Account, Transaction } from "@/lib/types";
 import { ErrorText, Stat } from "@/components/feedback";
 
