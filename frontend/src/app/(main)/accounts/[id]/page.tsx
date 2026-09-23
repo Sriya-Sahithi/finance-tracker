@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { accountApi } from "@/lib/api";
 import { formatDate, formatInr } from "@/lib/format";
+import { maskAccountNumber } from "@/lib/account-number";
 import type { Account, Transaction } from "@/lib/types";
 import { ErrorText, Stat } from "@/components/feedback";
 
@@ -56,8 +57,3 @@ export default function AccountDetailPage() {
   );
 }
 
-function maskAccountNumber(value: string) {
-  const trimmed = value.trim();
-  if (trimmed.length <= 4) return trimmed;
-  return `${"•".repeat(Math.max(trimmed.length - 4, 4))}${trimmed.slice(-4)}`;
-}

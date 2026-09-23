@@ -29,6 +29,23 @@ class CsvStatementParserTest {
     }
 
     @Test
+    void supportsQuotedCommasAndEscapedQuotes() {
+        String csv = "Date,Description,Amount,Transaction Type,Reference\n"
+                + "2026-03-05,"
+                + "\"\"\"Cafe, Corner\"\"\""
+                + ",-45.75,DR,"
+                + "\"\"\"INV\"\"-1\""
+                + "\n";
+        ParsedStatementFile parsed = parser.parse(csv);
+
+        assertThat(parsed.rows()).hasSize(1);
+        assertThat(parsed.rows().get(0).description()).isEqualTo("\"Cafe, Corner\"");
+        assertThat(parsed.rows().get(0).reference()).isEqualTo("\"INV\"-1");
+        assertThat(parsed.rows().get(0).type()).isEqualTo(TransactionType.EXPENSE);
+        assertThat(parsed.rows().get(0).amount()).isEqualByComparingTo("45.75");
+    }
+
+    @Test
     void rejectsMalformedRows() {
         assertThatThrownBy(() -> parser.parse("""
                 Date,Description,Debit,Credit

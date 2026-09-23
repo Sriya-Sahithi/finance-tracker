@@ -101,7 +101,7 @@ public class StatementImportService {
     @Transactional
     public StatementImportConfirmResponse confirm(UUID sessionId, StatementImportConfirmRequest request) {
         User user = currentUserService.require();
-        StatementImportSession session = sessionRepository.findByIdAndUserId(sessionId, user.getId())
+        StatementImportSession session = sessionRepository.lockByIdAndUserId(sessionId, user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Import session not found"));
         Account account = accountService.lockOwned(user.getId(), request.accountId());
         List<StoredPreviewRow> storedRows = readStoredRows(session.getPreviewRowsJson());
@@ -154,7 +154,9 @@ public class StatementImportService {
             }
         }
         transactionRepository.saveAll(toSave);
-        session.setConfirmedAt(Instant.now());
+        if (!toSave.isEmpty()) {
+            session.setConfirmedAt(Instant.now());
+        }
 
         return new StatementImportConfirmResponse(
                 session.getId(),

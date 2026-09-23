@@ -195,12 +195,12 @@ class CsvStatementParser {
                 continue;
             }
             if (ch == ',' && !inQuotes) {
-                currentRow.add(field.toString().trim());
+                currentRow.add(field.toString());
                 field.setLength(0);
                 continue;
             }
             if (ch == '\n' && !inQuotes) {
-                currentRow.add(field.toString().trim());
+                currentRow.add(field.toString());
                 rows.add(currentRow);
                 currentRow = new ArrayList<>();
                 field.setLength(0);
@@ -211,7 +211,7 @@ class CsvStatementParser {
         if (inQuotes) {
             throw new BadRequestException("Malformed CSV: unclosed quoted field");
         }
-        currentRow.add(field.toString().trim());
+        currentRow.add(field.toString());
         rows.add(currentRow);
         return rows;
     }

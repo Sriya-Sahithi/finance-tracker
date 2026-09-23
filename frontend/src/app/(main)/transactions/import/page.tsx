@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { accountApi, statementImportApi } from "@/lib/api";
 import { formatDate, formatInr } from "@/lib/format";
+import { maskAccountNumber } from "@/lib/account-number";
 import type { Account, StatementImportConfirmResponse, StatementImportPreview } from "@/lib/types";
 import { Field } from "@/components/auth-card";
 import { Empty, ErrorText } from "@/components/feedback";
@@ -215,7 +216,7 @@ export default function StatementImportPage() {
                       const checked = selectedFingerprints.includes(row.fingerprint);
                       return (
                         <tr key={row.fingerprint} className="border-t">
-                          <td className="px-4 py-3"><input type="checkbox" checked={checked} onChange={() => toggleFingerprint(row.fingerprint)} aria-label={`Toggle row ${row.rowNumber}`} /></td>
+                          <td className="px-4 py-3"><input type="checkbox" checked={checked} onChange={() => toggleFingerprint(row.fingerprint)} aria-label={`Include ${row.type === "INCOME" ? "income" : "expense"} row ${row.rowNumber}: ${row.description} on ${formatDate(row.transactionDate)} for ${formatInr(row.amount)}`} /></td>
                           <td className="px-4 py-3">{formatDate(row.transactionDate)}</td>
                           <td className="px-4 py-3">
                             <p className="font-medium">{row.description}</p>
@@ -245,11 +246,6 @@ export default function StatementImportPage() {
   );
 }
 
-function maskAccountNumber(value: string) {
-  const trimmed = value.trim();
-  if (trimmed.length <= 4) return trimmed;
-  return `${"•".repeat(Math.max(trimmed.length - 4, 4))}${trimmed.slice(-4)}`;
-}
 
 function buildSuccessMessage(result: StatementImportConfirmResponse) {
   if (result.importedCount === 0) {
