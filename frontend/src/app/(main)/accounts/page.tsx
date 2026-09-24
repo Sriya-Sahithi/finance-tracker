@@ -20,6 +20,7 @@ export default function AccountsPage() {
   const [type, setType] = useState("BANK");
   const [accountNumber, setAccountNumber] = useState("");
   const [openingBalance, setOpeningBalance] = useState("0.00");
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   function load() {
     accountApi.list().then(setAccounts).catch((err) => setError(err.message));
@@ -42,6 +43,21 @@ export default function AccountsPage() {
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create account");
+    }
+  }
+
+  async function removeAccount(account: Account) {
+    if (!window.confirm(`Delete ${account.name}? Accounts with transactions cannot be deleted.`)) return;
+
+    setError(null);
+    setDeletingId(account.id);
+    try {
+      await accountApi.remove(account.id);
+      setAccounts((current) => current.filter((item) => item.id !== account.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete account");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -68,15 +84,28 @@ export default function AccountsPage() {
         {accounts.length === 0 ? <Empty title="No accounts yet" body="Add a bank account or a cash wallet to start recording transactions." /> : (
             <div className="grid gap-3 sm:grid-cols-2">
               {accounts.map((account) => (
-                  <Link key={account.id} href={`/accounts/${account.id}`} className="rounded-lg border bg-white p-5 hover:border-teal-700">
-                    <p className="text-sm text-muted-foreground">{account.type.replaceAll("_", " ")}</p>
-                    <h2 className="mt-1 text-lg font-semibold">{account.name}</h2>
-                    {account.type === "BANK" && account.accountNumber && (
-                        <p className="mt-1 text-sm text-muted-foreground">A/c {maskAccountNumber(account.accountNumber)}</p>
-                    )}
-                    {account.accountNumber && <p className="mt-1 text-sm text-muted-foreground">{maskAccountNumber(account.accountNumber)}</p>}
-                    <p className="tabular mt-3 text-2xl font-semibold">{formatInr(account.currentBalance)}</p>
-                  </Link>
+                  <div key={account.id} className="rounded-lg border bg-white p-5 hover:border-teal-700">
+                    <Link href={`/accounts/${account.id}`} className="block">
+                      <p className="text-sm text-muted-foreground">{account.type.replaceAll("_", " ")}</p>
+                      <h2 className="mt-1 text-lg font-semibold">{account.name}</h2>
+                      {account.type === "BANK" && account.accountNumber && (
+                          <p className="mt-1 text-sm text-muted-foreground">A/c {maskAccountNumber(account.accountNumber)}</p>
+                      )}
+                      {account.accountNumber && <p className="mt-1 text-sm text-muted-foreground">{maskAccountNumber(account.accountNumber)}</p>}
+                      <p className="tabular mt-3 text-2xl font-semibold">{formatInr(account.currentBalance)}</p>
+                    </Link>
+                    <div className="mt-4 flex justify-end">
+                      <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => removeAccount(account)}
+                          disabled={deletingId === account.id}
+                      >
+                        {deletingId === account.id ? "Deleting…" : "Delete"}
+                      </Button>
+                    </div>
+                  </div>
               ))}
             </div>
         )}
