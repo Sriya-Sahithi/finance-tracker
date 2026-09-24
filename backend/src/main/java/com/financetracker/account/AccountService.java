@@ -11,10 +11,9 @@ import com.financetracker.common.security.CurrentUserService;
 import com.financetracker.transaction.TransactionRepository;
 import com.financetracker.transaction.dto.TransactionResponse;
 import com.financetracker.user.User;
-import java.util.Locale;
 import java.util.List;
-import java.util.regex.Pattern;
 import java.util.Locale;
+import java.util.regex.Pattern;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,15 +59,23 @@ public class AccountService {
     @Transactional
     public AccountResponse create(AccountRequest request) {
         User user = currentUserService.require();
+        String normalizedAccountNumber = normalizeAccountNumber(request.type(), request.accountNumber());
+
+        if (request.type() == AccountType.BANK && normalizedAccountNumber != null) {
+            accountRepository.findFirstByUserIdAndAccountNumber(user.getId(), normalizedAccountNumber)
+                    .ifPresent(existing -> {
+                        throw new ConflictException("This bank account already exists for this user");
+                    });
+        }
+
         Account account = new Account();
         account.setUser(user);
         account.setName(request.name().trim());
         account.setType(request.type());
-        account.setAccountNumber(normalizeAccountNumber(request.type(), request.accountNumber()));
+        account.setAccountNumber(normalizedAccountNumber);
         account.setOpeningBalance(Money.scale(request.openingBalance()));
         account.setCurrentBalance(Money.scale(request.openingBalance()));
         account.setCurrency(normalizeCurrency(request.currency()));
-        account.setAccountNumber(normalizeAccountNumber(request.accountNumber()));
         return AccountResponse.from(accountRepository.save(account));
     }
 
@@ -79,13 +86,22 @@ public class AccountService {
         var delta = opening.subtract(account.getOpeningBalance());
         var previousType = account.getType();
         var previousAccountNumber = account.getAccountNumber();
+        String normalizedAccountNumber = resolveUpdatedAccountNumber(previousType, previousAccountNumber, request);
+
+        if (request.type() == AccountType.BANK && normalizedAccountNumber != null) {
+            accountRepository.findFirstByUserIdAndAccountNumber(account.getUser().getId(), normalizedAccountNumber)
+                    .filter(existing -> !existing.getId().equals(account.getId()))
+                    .ifPresent(existing -> {
+                        throw new ConflictException("This bank account already exists for this user");
+                    });
+        }
+
         account.setName(request.name().trim());
         account.setType(request.type());
-        account.setAccountNumber(resolveUpdatedAccountNumber(previousType, previousAccountNumber, request));
+        account.setAccountNumber(normalizedAccountNumber);
         account.setOpeningBalance(opening);
         account.setCurrentBalance(Money.scale(account.getCurrentBalance().add(delta)));
         account.setCurrency(normalizeCurrency(request.currency()));
-        account.setAccountNumber(normalizeAccountNumber(request.accountNumber()));
         return AccountResponse.from(account);
     }
 
@@ -139,16 +155,17 @@ public class AccountService {
         if (request.type() != AccountType.BANK) {
             return null;
         }
-        if (request.accountNumber() == null) {
+        if (request.accountNumber() == null || request.accountNumber().isBlank()) {
             return previousType == AccountType.BANK ? previousAccountNumber : null;
         }
         return normalizeAccountNumber(request.type(), request.accountNumber());
     }
 
     private String normalizeAccountNumber(AccountType type, String accountNumber) {
-        if (type != AccountType.BANK || accountNumber == null) {
+        if (type != AccountType.BANK || accountNumber == null || accountNumber.isBlank()) {
             return null;
         }
+
         String normalized = accountNumber.replaceAll("[\\s-]+", "").trim().toUpperCase(Locale.ROOT);
         if (normalized.isEmpty()) {
             return null;
@@ -157,10 +174,5 @@ public class AccountService {
             throw new BadRequestException("Account number must be 4 to 34 letters or digits");
         }
         return normalized;
-    private String normalizeAccountNumber(String accountNumber) {
-        if (accountNumber == null || accountNumber.isBlank()) {
-            return null;
-        }
-        return accountNumber.trim().replaceAll("[^A-Za-z0-9]", "").toUpperCase(Locale.ROOT);
     }
 }

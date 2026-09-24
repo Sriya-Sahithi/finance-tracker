@@ -22,12 +22,28 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-/** Parses uploaded bank/loan statement files into a generic tabular structure. */
 @Service
 public class FileParsingService {
 
     private static final long MAX_FILE_SIZE_BYTES = 10L * 1024 * 1024;
     private static final int MAX_ROWS = 5000;
+    private static final List<String> HEADER_KEYWORDS = List.of(
+            "transaction date",
+            "value date",
+            "date",
+            "narration",
+            "description",
+            "particulars",
+            "debit",
+            "credit",
+            "withdrawal",
+            "deposit",
+            "amount",
+            "balance",
+            "outstanding",
+            "account no",
+            "account number"
+    );
 
     public ParsedTable parse(MultipartFile file) {
         ImportedFileType type = detectType(file);
@@ -54,7 +70,6 @@ public class FileParsingService {
         throw new BadRequestException("Unsupported file type. Upload a .csv or .xlsx file");
     }
 
-    /** Strips directory components and disallowed characters so the name is safe to log/display. */
     public String sanitizeFilename(String original) {
         if (original == null || original.isBlank()) {
             return "upload";
@@ -75,40 +90,66 @@ public class FileParsingService {
     }
 
     private boolean isZipMagic(byte[] header) {
-        // .xlsx files are zip archives, which start with the "PK" magic bytes.
         return header.length >= 2 && header[0] == 0x50 && header[1] == 0x4B;
     }
 
     private ParsedTable parseCsv(MultipartFile file) {
+        List<List<String>> rawRows = new ArrayList<>();
         try (var reader = new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8)) {
-            CSVFormat format = CSVFormat.DEFAULT.builder()
-                    .setHeader()
-                    .setSkipHeaderRecord(true)
+            CSVParser parser = CSVFormat.DEFAULT.builder()
                     .setIgnoreSurroundingSpaces(true)
                     .setTrim(true)
-                    .build();
-            CSVParser parser = format.parse(reader);
-            List<String> headers = new ArrayList<>(parser.getHeaderNames());
-            if (headers.isEmpty()) {
-                throw new BadRequestException("The CSV file has no header row");
-            }
-            List<Map<String, String>> rows = new ArrayList<>();
+                    .build()
+                    .parse(reader);
+
             for (CSVRecord record : parser) {
-                if (rows.size() >= MAX_ROWS) {
-                    break;
+                List<String> row = new ArrayList<>();
+                for (String value : record) {
+                    row.add(value == null ? "" : value.trim());
                 }
-                Map<String, String> row = new LinkedHashMap<>();
-                for (String header : headers) {
-                    row.put(header, record.isSet(header) ? record.get(header) : "");
+                if (!row.stream().allMatch(String::isBlank)) {
+                    rawRows.add(row);
                 }
-                rows.add(row);
             }
-            return new ParsedTable(headers, rows);
         } catch (IOException ex) {
             throw new BadRequestException("Could not parse CSV file");
         } catch (IllegalArgumentException ex) {
             throw new BadRequestException("Malformed CSV file: " + ex.getMessage());
         }
+
+        int headerIndex = findHeaderRow(rawRows);
+        if (headerIndex < 0) {
+            throw new BadRequestException("Could not find a valid header row in the CSV file");
+        }
+
+        List<String> headers = normalizeHeaders(rawRows.get(headerIndex));
+        List<Map<String, String>> rows = new ArrayList<>();
+        for (int rowIndex = headerIndex + 1; rowIndex < rawRows.size(); rowIndex++) {
+            if (rows.size() >= MAX_ROWS) {
+                break;
+            }
+            List<String> values = rawRows.get(rowIndex);
+            if (values.size() < headers.size()) {
+                while (values.size() < headers.size()) {
+                    values.add("");
+                }
+            }
+
+            Map<String, String> row = new LinkedHashMap<>();
+            boolean hasValue = false;
+            for (int col = 0; col < headers.size(); col++) {
+                String value = col < values.size() ? values.get(col) : "";
+                if (!value.isBlank()) {
+                    hasValue = true;
+                }
+                row.put(headers.get(col), value);
+            }
+            if (hasValue) {
+                rows.add(row);
+            }
+        }
+
+        return new ParsedTable(headers, rows);
     }
 
     private ParsedTable parseXlsx(MultipartFile file) {
@@ -119,11 +160,13 @@ public class FileParsingService {
             if (headerRow == null) {
                 throw new BadRequestException("The spreadsheet has no header row");
             }
+
             List<String> headers = new ArrayList<>();
             for (Cell cell : headerRow) {
                 String value = formatter.formatCellValue(cell).trim();
                 headers.add(value.isBlank() ? ("Column" + (cell.getColumnIndex() + 1)) : value);
             }
+
             List<Map<String, String>> rows = new ArrayList<>();
             for (int rowIndex = sheet.getFirstRowNum() + 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
                 if (rows.size() >= MAX_ROWS) {
@@ -133,6 +176,7 @@ public class FileParsingService {
                 if (sheetRow == null) {
                     continue;
                 }
+
                 Map<String, String> row = new LinkedHashMap<>();
                 boolean hasValue = false;
                 for (int col = 0; col < headers.size(); col++) {
@@ -147,6 +191,7 @@ public class FileParsingService {
                     rows.add(row);
                 }
             }
+
             return new ParsedTable(headers, rows);
         } catch (IOException ex) {
             throw new BadRequestException("Could not parse spreadsheet file");
@@ -155,5 +200,34 @@ public class FileParsingService {
         } catch (Exception ex) {
             throw new BadRequestException("Malformed spreadsheet file: " + ex.getMessage());
         }
+    }
+
+    private int findHeaderRow(List<List<String>> rawRows) {
+        for (int i = 0; i < rawRows.size(); i++) {
+            String joined = String.join(" ", rawRows.get(i)).toLowerCase(Locale.ROOT);
+            int score = 0;
+            for (String keyword : HEADER_KEYWORDS) {
+                if (joined.contains(keyword)) {
+                    score++;
+                }
+            }
+            if (score >= 2) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private List<String> normalizeHeaders(List<String> rawHeaders) {
+        List<String> headers = new ArrayList<>();
+        for (int i = 0; i < rawHeaders.size(); i++) {
+            String header = rawHeaders.get(i);
+            String normalized = header == null ? "" : header.trim().replaceAll("\\s+", " ");
+            if (normalized.isBlank()) {
+                normalized = "Column" + (i + 1);
+            }
+            headers.add(normalized);
+        }
+        return headers;
     }
 }

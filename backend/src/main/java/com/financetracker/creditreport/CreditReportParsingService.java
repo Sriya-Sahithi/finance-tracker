@@ -8,6 +8,7 @@ import com.financetracker.imports.ParsedTable;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -18,11 +19,6 @@ import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-/**
- * Best-effort extraction of tradeline accounts from a CIBIL-style credit report.
- * PDF reports vary widely in layout, so a line/keyword heuristic is used and the
- * result is always shown to the user for confirmation before anything is saved.
- */
 @Service
 public class CreditReportParsingService {
 
@@ -85,6 +81,7 @@ public class CreditReportParsingService {
             if (balance == null) {
                 continue;
             }
+
             String bankName = bankMatcher.group(1).trim();
             Matcher limitMatcher = LIMIT_PATTERN.matcher(block);
             BigDecimal limit = limitMatcher.find() ? parseNumber(limitMatcher.group(1)) : null;
@@ -101,10 +98,78 @@ public class CreditReportParsingService {
             accounts.add(new CreditReportAccountDto(null, bankName, type, accountNumber, balance, limit, status, null));
         }
 
+        if (accounts.isEmpty()) {
+            accounts.addAll(parsePdfFallback(text));
+        }
+
         String warning = accounts.isEmpty()
                 ? "Could not automatically detect account blocks in this PDF layout. Please add accounts manually below."
                 : null;
         return new CreditReportParsePreviewResponse(accounts, filename, warning);
+    }
+
+    private List<CreditReportAccountDto> parsePdfFallback(String text) {
+        List<CreditReportAccountDto> result = new ArrayList<>();
+        Map<String, CreditReportAccountDtoBuilder> byBank = new HashMap<>();
+
+        for (String rawLine : text.split("\\r?\\n")) {
+            String line = rawLine.replaceAll("\\s+", " ").trim();
+            if (line.isBlank()) {
+                continue;
+            }
+
+            String lower = line.toLowerCase(Locale.ROOT);
+            if (lower.contains("bank") || lower.contains("lender") || lower.contains("institution") || lower.contains("credit card")) {
+                String bankName = line.replaceAll("(?i)(?:bank|lender|institution).*?[:\\-]\\s*", "").trim();
+                if (!bankName.isBlank()) {
+                    byBank.computeIfAbsent(bankName, key -> new CreditReportAccountDtoBuilder(bankName));
+                }
+            }
+
+            for (Map.Entry<String, CreditReportAccountDtoBuilder> entry : byBank.entrySet()) {
+                String bankName = entry.getKey();
+                CreditReportAccountDtoBuilder builder = entry.getValue();
+                if (lower.contains(bankName.toLowerCase(Locale.ROOT))) {
+                    if (lower.contains("balance") || lower.contains("outstanding")) {
+                        Matcher matcher = Pattern.compile("(?:balance|outstanding).*?([0-9,.]+)", Pattern.CASE_INSENSITIVE).matcher(line);
+                        if (matcher.find()) {
+                            builder.balance(parseNumber(matcher.group(1)));
+                        }
+                    }
+                    if (lower.contains("limit") || lower.contains("sanctioned")) {
+                        Matcher matcher = Pattern.compile("(?:limit|sanctioned).*?([0-9,.]+)", Pattern.CASE_INSENSITIVE).matcher(line);
+                        if (matcher.find()) {
+                            builder.limit(parseNumber(matcher.group(1)));
+                        }
+                    }
+                    if (lower.contains("type")) {
+                        Matcher matcher = Pattern.compile("type.*?[:\\-]\\s*(.+)$", Pattern.CASE_INSENSITIVE).matcher(line);
+                        if (matcher.find()) {
+                            builder.type(mapAccountType(matcher.group(1)));
+                        }
+                    }
+                    if (lower.contains("status")) {
+                        Matcher matcher = Pattern.compile("status.*?[:\\-]\\s*(.+)$", Pattern.CASE_INSENSITIVE).matcher(line);
+                        if (matcher.find()) {
+                            builder.status(mapStatus(matcher.group(1)));
+                        }
+                    }
+                    if (lower.contains("account") && (lower.contains("no") || lower.contains("number"))) {
+                        Matcher matcher = Pattern.compile("(?:account\\s*(?:no|number))\\s*[:\\-]\\s*([\\w*Xx-]+)", Pattern.CASE_INSENSITIVE).matcher(line);
+                        if (matcher.find()) {
+                            builder.accountNumber(matcher.group(1));
+                        }
+                    }
+                }
+            }
+        }
+
+        for (CreditReportAccountDtoBuilder builder : byBank.values()) {
+            if (builder.isComplete()) {
+                result.add(builder.build());
+            }
+        }
+        return result;
     }
 
     private CreditReportParsePreviewResponse parseSpreadsheet(MultipartFile file, String filename) {
@@ -190,6 +255,57 @@ public class CreditReportParsingService {
             return new BigDecimal(cleaned);
         } catch (NumberFormatException ex) {
             return null;
+        }
+    }
+
+    private static final class CreditReportAccountDtoBuilder {
+        private final String bankName;
+        private BigDecimal balance;
+        private BigDecimal limit;
+        private CreditReportAccountType type = CreditReportAccountType.OTHER;
+        private CreditReportStatus status = CreditReportStatus.ACTIVE;
+        private String accountNumber;
+
+        private CreditReportAccountDtoBuilder(String bankName) {
+            this.bankName = bankName;
+        }
+
+        private void balance(BigDecimal balance) {
+            if (balance != null) {
+                this.balance = balance;
+            }
+        }
+
+        private void limit(BigDecimal limit) {
+            if (limit != null) {
+                this.limit = limit;
+            }
+        }
+
+        private void type(CreditReportAccountType type) {
+            if (type != null) {
+                this.type = type;
+            }
+        }
+
+        private void status(CreditReportStatus status) {
+            if (status != null) {
+                this.status = status;
+            }
+        }
+
+        private void accountNumber(String accountNumber) {
+            if (accountNumber != null && !accountNumber.isBlank()) {
+                this.accountNumber = accountNumber.trim();
+            }
+        }
+
+        private boolean isComplete() {
+            return balance != null && !bankName.isBlank();
+        }
+
+        private CreditReportAccountDto build() {
+            return new CreditReportAccountDto(null, bankName, type, accountNumber, balance, limit, status, null);
         }
     }
 }

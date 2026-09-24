@@ -36,7 +36,6 @@ export default function AccountsPage() {
         openingBalance,
         currency: "INR",
       });
-      await accountApi.create({ name, type, openingBalance, currency: "INR", accountNumber: accountNumber || null });
       setOpen(false);
       setName("");
       setAccountNumber("");
@@ -47,76 +46,74 @@ export default function AccountsPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Accounts</h1>
-          <p className="text-sm text-muted-foreground">Bank, cash, and card balances in INR.</p>
-        </div>
-        <div className="flex gap-2">
-          {accounts.length > 0 && (
-            <StatementUploadDialog
-              targetType="ACCOUNT"
-              targets={accounts.map((account) => ({ id: account.id, label: account.name }))}
-              triggerLabel="Upload bank statement"
-              onImported={load}
-            />
-          )}
-          <Button type="button" onClick={() => setOpen(true)}>Add account</Button>
-        </div>
-      </div>
-      <ErrorText message={error} />
-      {accounts.length === 0 ? <Empty title="No accounts yet" body="Add a bank account or a cash wallet to start recording transactions." /> : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {accounts.map((account) => (
-            <Link key={account.id} href={`/accounts/${account.id}`} className="rounded-lg border bg-white p-5 hover:border-teal-700">
-              <p className="text-sm text-muted-foreground">{account.type.replaceAll("_", " ")}</p>
-              <h2 className="mt-1 text-lg font-semibold">{account.name}</h2>
-              {account.type === "BANK" && account.accountNumber && (
-                <p className="mt-1 text-sm text-muted-foreground">A/c {maskAccountNumber(account.accountNumber)}</p>
-              )}
-              {account.accountNumber && <p className="mt-1 text-sm text-muted-foreground">{maskAccountNumber(account.accountNumber)}</p>}
-              <p className="tabular mt-3 text-2xl font-semibold">{formatInr(account.currentBalance)}</p>
-            </Link>
-          ))}
-        </div>
-      )}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Add account</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <Field label="Name"><Input value={name} onChange={(event) => setName(event.target.value)} placeholder="HDFC Savings" /></Field>
-            <Field label="Type">
-              <select
-                className="h-10 w-full rounded-md border bg-white px-3 text-sm"
-                value={type}
-                onChange={(event) => {
-                  setType(event.target.value);
-                  if (event.target.value !== "BANK") setAccountNumber("");
-                }}
-              >
-                <option value="BANK">Bank</option>
-                <option value="CASH">Cash</option>
-                <option value="CREDIT_CARD">Credit card</option>
-                <option value="OTHER">Other</option>
-              </select>
-            </Field>
-            {type === "BANK" && (
-              <Field label="Account number">
-                <Input
-                  value={accountNumber}
-                  onChange={(event) => setAccountNumber(event.target.value)}
-                  placeholder="1234 5678 9012"
-                />
-              </Field>
-            )}
-            <Field label="Opening balance"><Input value={openingBalance} onChange={(event) => setOpeningBalance(event.target.value)} /></Field>
-            <Field label="Account number (optional)"><Input value={accountNumber} onChange={(event) => setAccountNumber(event.target.value)} placeholder="1234567890" /></Field>
-            <Button type="button" onClick={create}>Save</Button>
+      <div className="space-y-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold">Accounts</h1>
+            <p className="text-sm text-muted-foreground">Bank, cash, and card balances in INR.</p>
           </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+          <div className="flex gap-2">
+            {accounts.length > 0 && (
+                <StatementUploadDialog
+                    targetType="ACCOUNT"
+                    targets={accounts.map((account) => ({ id: account.id, label: account.name }))}
+                    triggerLabel="Upload bank statement"
+                    onImported={load}
+                />
+            )}
+            <Button type="button" onClick={() => setOpen(true)}>Add account</Button>
+          </div>
+        </div>
+        <ErrorText message={error} />
+        {accounts.length === 0 ? <Empty title="No accounts yet" body="Add a bank account or a cash wallet to start recording transactions." /> : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {accounts.map((account) => (
+                  <Link key={account.id} href={`/accounts/${account.id}`} className="rounded-lg border bg-white p-5 hover:border-teal-700">
+                    <p className="text-sm text-muted-foreground">{account.type.replaceAll("_", " ")}</p>
+                    <h2 className="mt-1 text-lg font-semibold">{account.name}</h2>
+                    {account.type === "BANK" && account.accountNumber && (
+                        <p className="mt-1 text-sm text-muted-foreground">A/c {maskAccountNumber(account.accountNumber)}</p>
+                    )}
+                    {account.accountNumber && <p className="mt-1 text-sm text-muted-foreground">{maskAccountNumber(account.accountNumber)}</p>}
+                    <p className="tabular mt-3 text-2xl font-semibold">{formatInr(account.currentBalance)}</p>
+                  </Link>
+              ))}
+            </div>
+        )}
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Add account</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <Field label="Name"><Input value={name} onChange={(event) => setName(event.target.value)} placeholder="HDFC Savings" /></Field>
+              <Field label="Type">
+                <select
+                    className="h-10 w-full rounded-md border bg-white px-3 text-sm"
+                    value={type}
+                    onChange={(event) => {
+                      setType(event.target.value);
+                      if (event.target.value !== "BANK") setAccountNumber("");
+                    }}
+                >
+                  <option value="BANK">Bank</option>
+                  <option value="CASH">Cash</option>
+                  <option value="CREDIT_CARD">Credit card</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </Field>
+              {type === "BANK" && (
+                  <Field label="Account number">
+                    <Input
+                        value={accountNumber}
+                        onChange={(event) => setAccountNumber(event.target.value)}
+                        placeholder="1234 5678 9012"
+                    />
+                  </Field>
+              )}
+              <Field label="Opening balance"><Input value={openingBalance} onChange={(event) => setOpeningBalance(event.target.value)} /></Field>
+              <Button type="button" onClick={create}>Save</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
   );
 }
-
