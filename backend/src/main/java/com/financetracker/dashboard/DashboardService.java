@@ -1,5 +1,7 @@
 package com.financetracker.dashboard;
 
+import com.financetracker.account.Account;
+import com.financetracker.account.AccountRepository;
 import com.financetracker.budget.BudgetService;
 import com.financetracker.budget.dto.BudgetResponse;
 import com.financetracker.common.money.Money;
@@ -26,6 +28,7 @@ public class DashboardService {
     private final TransactionRepository transactionRepository;
     private final BudgetService budgetService;
     private final LoanRepository loanRepository;
+    private final AccountRepository accountRepository;
     private final LoanCalculationService loanCalculationService;
     private final CurrentUserService currentUserService;
     private final Clock clock;
@@ -34,6 +37,7 @@ public class DashboardService {
             TransactionRepository transactionRepository,
             BudgetService budgetService,
             LoanRepository loanRepository,
+            AccountRepository accountRepository,
             LoanCalculationService loanCalculationService,
             CurrentUserService currentUserService,
             Clock clock
@@ -41,6 +45,7 @@ public class DashboardService {
         this.transactionRepository = transactionRepository;
         this.budgetService = budgetService;
         this.loanRepository = loanRepository;
+        this.accountRepository = accountRepository;
         this.loanCalculationService = loanCalculationService;
         this.currentUserService = currentUserService;
         this.clock = clock;
@@ -63,6 +68,19 @@ public class DashboardService {
         }
         totalBudget = Money.scale(totalBudget);
         budgetUsed = Money.scale(budgetUsed);
+
+        List<Account> accounts = accountRepository.findByUserIdOrderByNameAsc(userId);
+        List<DashboardResponse.AccountBalanceSummary> accountBalances = accounts.stream()
+                .map(account -> new DashboardResponse.AccountBalanceSummary(
+                        account.getId(),
+                        account.getName(),
+                        account.getType().name(),
+                        Money.scale(account.getCurrentBalance())))
+                .toList();
+        BigDecimal totalAccountBalance = accountBalances.stream()
+                .map(DashboardResponse.AccountBalanceSummary::balance)
+                .reduce(Money.ZERO, BigDecimal::add);
+
         return new DashboardResponse(
                 selected.getYear(),
                 selected.getMonthValue(),
@@ -72,6 +90,8 @@ public class DashboardService {
                 totalBudget,
                 budgetUsed,
                 Money.scale(totalBudget.subtract(budgetUsed)),
+                Money.scale(totalAccountBalance),
+                accountBalances,
                 loanSummary(userId, selected));
     }
 
