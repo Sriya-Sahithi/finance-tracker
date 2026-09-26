@@ -40,11 +40,11 @@ export default function DashboardPage() {
             <div className="border-b px-5 py-4">
               <h2 className="font-semibold">Accounts</h2>
             </div>
-            {data.accountBalances.length === 0 ? (
+            {(data.accountBalances ?? []).length === 0 ? (
               <p className="px-5 py-8 text-sm text-muted-foreground">No accounts yet.</p>
             ) : (
               <ul>
-                {data.accountBalances.map((account) => (
+                {(data.accountBalances ?? []).map((account) => (
                   <li key={account.id} className="flex items-center justify-between gap-3 border-t px-5 py-3 text-sm first:border-t-0">
                     <div>
                       <p className="font-medium">{account.name}</p>
@@ -57,20 +57,20 @@ export default function DashboardPage() {
             )}
           </section>
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Stat label="Outstanding loans" value={formatInr(data.loans.totalOutstanding)} hint={`${data.loans.activeLoanCount} active`} />
-            <Stat label="EMI obligation" value={formatInr(data.loans.totalEmiObligation)} />
-            <Stat label="Upcoming EMI" value={formatInr(data.loans.upcomingEmi)} />
+            <Stat label="Outstanding loans" value={formatInr(data.loans?.totalOutstanding ?? "0")} hint={`${data.loans?.activeLoanCount ?? 0} active`} />
+            <Stat label="EMI obligation" value={formatInr(data.loans?.totalEmiObligation ?? "0")} />
+            <Stat label="Upcoming EMI" value={formatInr(data.loans?.upcomingEmi ?? "0")} />
             <Stat label="Budget remaining" value={formatInr(data.budgetRemaining)} />
           </section>
           <section className="rounded-lg border bg-white">
             <div className="border-b px-5 py-4">
               <h2 className="font-semibold">Upcoming loan EMIs</h2>
             </div>
-            {data.loans.upcomingPayments.length === 0 ? (
+            {(data.loans?.upcomingPayments ?? []).length === 0 ? (
               <p className="px-5 py-8 text-sm text-muted-foreground">No EMIs are due in this month.</p>
             ) : (
               <ul>
-                {data.loans.upcomingPayments.map((payment) => (
+                {(data.loans?.upcomingPayments ?? []).map((payment) => (
                   <li key={payment.loanId} className="flex items-center justify-between gap-3 border-t px-5 py-3 text-sm first:border-t-0">
                     <div>
                       <Link className="font-medium hover:underline" href={`/loans/${payment.loanId}`}>{payment.loanName}</Link>

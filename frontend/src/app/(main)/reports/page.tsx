@@ -33,30 +33,30 @@ export default function ReportsPage() {
     reportApi.monthly(year, month).then(setReport).catch((err) => setError(err.message));
   }, [year, month]);
 
-  const cashFlow = report?.cashFlow.map((point) => ({
-    name: MONTHS[point.month - 1].slice(0, 3),
+  const cashFlow = (report?.cashFlow ?? []).map((point) => ({
+    name: MONTHS[point.month - 1]?.slice(0, 3) ?? "",
     income: Number(point.income),
     expenses: Number(point.expenses),
-  })) ?? [];
-  const spending = report?.monthlySpending.map((point) => ({
-    name: MONTHS[point.month - 1].slice(0, 3),
+  }));
+  const spending = (report?.monthlySpending ?? []).map((point) => ({
+    name: MONTHS[point.month - 1]?.slice(0, 3) ?? "",
     amount: Number(point.amount),
-  })) ?? [];
-  const categories = report?.expenseByCategory.map((point) => ({ name: point.categoryName, value: Number(point.amount) })) ?? [];
-  const budgets = report?.budgetUtilization.map((point) => ({
+  }));
+  const categories = (report?.expenseByCategory ?? []).map((point) => ({ name: point.categoryName, value: Number(point.amount) }));
+  const budgets = (report?.budgetUtilization ?? []).map((point) => ({
     name: point.categoryName,
     budget: Number(point.budget),
     spent: Number(point.spent),
-  })) ?? [];
-  const balances = report?.loanBalanceOverTime.map((point) => ({
-    name: MONTHS[point.month - 1].slice(0, 3),
+  }));
+  const balances = (report?.loanBalanceOverTime ?? []).map((point) => ({
+    name: MONTHS[point.month - 1]?.slice(0, 3) ?? "",
     balance: Number(point.amount),
-  })) ?? [];
-  const split = report?.interestVsPrincipal.map((point) => ({
-    name: MONTHS[point.month - 1].slice(0, 3),
+  }));
+  const split = (report?.interestVsPrincipal ?? []).map((point) => ({
+    name: MONTHS[point.month - 1]?.slice(0, 3) ?? "",
     interest: Number(point.interest),
     principal: Number(point.principal),
-  })) ?? [];
+  }));
 
   return (
     <div className="space-y-5">

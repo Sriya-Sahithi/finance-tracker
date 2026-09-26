@@ -27,8 +27,8 @@ export default function StatementImportPage() {
 
   useEffect(() => {
     if (!preview) return;
-    setSelectedAccountId(preview.detectedAccount.suggestedAccountId ? String(preview.detectedAccount.suggestedAccountId) : "");
-    setSelectedFingerprints(preview.rows.map((row) => row.fingerprint));
+    setSelectedAccountId(preview?.detectedAccount?.suggestedAccountId ? String(preview.detectedAccount.suggestedAccountId) : "");
+    setSelectedFingerprints((preview?.rows ?? []).map((row) => row.fingerprint));
   }, [preview]);
 
   const selectedSummary = useMemo(() => {
@@ -36,7 +36,7 @@ export default function StatementImportPage() {
     let income = 0;
     let expense = 0;
     const selected = new Set(selectedFingerprints);
-    for (const row of preview.rows) {
+    for (const row of preview.rows ?? []) {
       if (!selected.has(row.fingerprint)) continue;
       if (row.type === "INCOME") income += toMinorUnits(row.amount);
       else expense += toMinorUnits(row.amount);
@@ -136,8 +136,8 @@ export default function StatementImportPage() {
           <div className="grid gap-3 md:grid-cols-3">
             <div className="rounded-lg border bg-white p-4">
               <p className="text-sm text-muted-foreground">Rows ready to import</p>
-              <p className="mt-1 text-2xl font-semibold">{preview.summary.validRows}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Skipped rows: {preview.summary.skippedRows}</p>
+              <p className="mt-1 text-2xl font-semibold">{preview.summary?.validRows ?? (preview.rows ?? []).length}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Skipped rows: {preview.summary?.skippedRows ?? (preview.skippedRows ?? []).length}</p>
             </div>
             <div className="rounded-lg border bg-white p-4">
               <p className="text-sm text-muted-foreground">Income selected</p>
@@ -154,17 +154,17 @@ export default function StatementImportPage() {
               <div>
                 <h2 className="font-semibold">Detected account</h2>
                 <p className="text-sm text-muted-foreground">
-                  {preview.detectedAccount.accountName || "No account name found"}
-                  {preview.detectedAccount.accountNumber ? ` · ${maskAccountNumber(preview.detectedAccount.accountNumber)}` : ""}
+                  {preview.detectedAccount?.accountName || "No account name found"}
+                  {preview.detectedAccount?.accountNumber ? ` · ${maskAccountNumber(preview.detectedAccount.accountNumber)}` : ""}
                 </p>
-                {preview.detectedAccount.suggestedAccountName && (
+                {preview.detectedAccount?.suggestedAccountName && (
                   <p className="text-xs text-muted-foreground">Suggested match: {preview.detectedAccount.suggestedAccountName} ({preview.detectedAccount.matchedBy === "ACCOUNT_NUMBER" ? "matched by account number" : "matched by account name"})</p>
                 )}
               </div>
               <Field label="Import into account">
                 <select className="h-10 w-full rounded-md border bg-white px-3 text-sm" value={selectedAccountId} onChange={(event) => setSelectedAccountId(event.target.value)}>
                   <option value="">Select an existing account</option>
-                  {accounts.map((account) => (
+                  {(accounts ?? []).map((account) => (
                     <option key={account.id} value={account.id}>{account.name}{account.accountNumber ? ` (${maskAccountNumber(account.accountNumber)})` : ""}</option>
                   ))}
                 </select>
@@ -172,25 +172,25 @@ export default function StatementImportPage() {
             </div>
           </div>
 
-          {preview.warnings.length > 0 && (
+          {(preview.warnings ?? []).length > 0 && (
             <div className="rounded-lg border bg-amber-50 p-4 text-sm text-amber-900">
               <p className="font-medium">Warnings</p>
               <ul className="mt-2 list-disc pl-5">
-                {preview.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+                {(preview.warnings ?? []).map((warning) => <li key={warning}>{warning}</li>)}
               </ul>
             </div>
           )}
 
-          {preview.skippedRows.length > 0 && (
+          {(preview.skippedRows ?? []).length > 0 && (
             <div className="rounded-lg border bg-white p-5">
               <h2 className="font-semibold">Skipped rows</h2>
               <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                {preview.skippedRows.map((row) => <li key={`${row.rowNumber}-${row.reason}`}>Row {row.rowNumber}: {row.reason}</li>)}
+                {(preview.skippedRows ?? []).map((row) => <li key={`${row.rowNumber}-${row.reason}`}>Row {row.rowNumber}: {row.reason}</li>)}
               </ul>
             </div>
           )}
 
-          {preview.rows.length === 0 ? <Empty title="No valid rows found" body="Fix the CSV warnings or choose another file to continue." /> : (
+          {(preview.rows ?? []).length === 0 ? <Empty title="No valid rows found" body="Fix the CSV warnings or choose another file to continue." /> : (
             <div className="rounded-lg border bg-white">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
                 <div>
@@ -198,7 +198,7 @@ export default function StatementImportPage() {
                   <p className="text-sm text-muted-foreground">Select the rows to import.</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button type="button" size="sm" variant="outline" onClick={() => setSelectedFingerprints(preview.rows.map((row) => row.fingerprint))}>Select all</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setSelectedFingerprints((preview.rows ?? []).map((row) => row.fingerprint))}>Select all</Button>
                   <Button type="button" size="sm" variant="outline" onClick={() => setSelectedFingerprints([])}>Clear</Button>
                 </div>
               </div>
@@ -215,7 +215,7 @@ export default function StatementImportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {preview.rows.map((row) => {
+                    {(preview.rows ?? []).map((row) => {
                       const checked = selectedFingerprints.includes(row.fingerprint);
                       return (
                         <tr key={row.fingerprint} className="border-t">
@@ -239,7 +239,7 @@ export default function StatementImportPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">{selectedFingerprints.length} row(s) selected for confirmation.</p>
-            <Button type="button" onClick={handleConfirm} disabled={confirming || preview.rows.length === 0}>{confirming ? "Importing…" : "Confirm import"}</Button>
+            <Button type="button" onClick={handleConfirm} disabled={confirming || (preview.rows ?? []).length === 0}>{confirming ? "Importing…" : "Confirm import"}</Button>
           </div>
         </div>
       ) : (

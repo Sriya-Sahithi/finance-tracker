@@ -44,15 +44,15 @@ export default function TransactionsPage() {
     if (search.trim()) query.set("search", search.trim());
     if (type) query.set("type", type);
     const result = await transactionApi.list(`?${query.toString()}`);
-    setRows(result.content);
-    setTotalPages(result.totalPages);
-    setPage(result.page);
+    setRows(result?.content ?? []);
+    setTotalPages(result?.totalPages ?? 0);
+    setPage(result?.page ?? 0);
   }
 
   useEffect(() => {
     Promise.all([accountApi.list(), categoryApi.list()]).then(([nextAccounts, nextCategories]) => {
-      setAccounts(nextAccounts);
-      setCategories(nextCategories);
+      setAccounts(nextAccounts ?? []);
+      setCategories(nextCategories ?? []);
     }).catch((err) => setError(err.message));
   }, []);
 
@@ -85,7 +85,7 @@ export default function TransactionsPage() {
         </select>
         <Button type="button" variant="outline" onClick={() => load(0).catch((err) => setError(err.message))}>Search</Button>
       </div>
-      {rows.length === 0 ? <Empty title="No transactions" body="Add income, an expense, or a transfer between your accounts." /> : (
+      {(rows ?? []).length === 0 ? <Empty title="No transactions" body="Add income, an expense, or a transfer between your accounts." /> : (
         <div className="overflow-x-auto rounded-lg border bg-white">
           <table className="w-full text-sm">
             <thead className="border-b text-left text-muted-foreground">
@@ -99,7 +99,7 @@ export default function TransactionsPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
+              {(rows ?? []).map((row) => (
                 <tr key={row.id} className="border-t">
                   <td className="px-4 py-3">{formatDate(row.transactionDate)}</td>
                   <td className="px-4 py-3">
