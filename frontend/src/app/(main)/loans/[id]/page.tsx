@@ -7,6 +7,7 @@ import { formatDate, formatInr } from "@/lib/format";
 import type { Account, Loan, LoanPayment, Prepayment, ScheduleRow } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ErrorText, Stat } from "@/components/feedback";
 import { Field } from "@/components/auth-card";
 
@@ -24,6 +25,20 @@ export default function LoanDetailPage() {
   const [strategy, setStrategy] = useState<"REDUCE_TENURE" | "REDUCE_EMI">("REDUCE_TENURE");
   const [remainingMonths, setRemainingMonths] = useState("12");
   const [accountId, setAccountId] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    loanType: "HOME" as Loan["loanType"],
+    principalAmount: "",
+    annualInterestRate: "",
+    tenureMonths: "",
+    startDate: "",
+    firstPaymentDate: "",
+    paymentDueDay: "",
+    currentOutstandingPrincipal: "",
+    remainingMonths: "",
+  });
 
   function load() {
     Promise.all([loanApi.get(id), loanApi.schedule(id), loanApi.payments(id), accountApi.list()])
@@ -34,6 +49,46 @@ export default function LoanDetailPage() {
         setAccounts(nextAccounts);
       })
       .catch((err) => setError(err.message));
+  }
+
+  function openEditModal() {
+    if (!loan) return;
+    setEditError(null);
+    setEditForm({
+      name: loan.name,
+      loanType: loan.loanType,
+      principalAmount: loan.principalAmount,
+      annualInterestRate: loan.annualInterestRate,
+      tenureMonths: String(loan.tenureMonths),
+      startDate: loan.startDate,
+      firstPaymentDate: loan.firstPaymentDate,
+      paymentDueDay: String(loan.paymentDueDay),
+      currentOutstandingPrincipal: loan.outstandingPrincipal,
+      remainingMonths: String(loan.remainingMonths),
+    });
+    setEditOpen(true);
+  }
+
+  async function updateLoan() {
+    setEditError(null);
+    try {
+      await loanApi.update(id, {
+        name: editForm.name,
+        loanType: editForm.loanType,
+        principalAmount: editForm.principalAmount,
+        annualInterestRate: editForm.annualInterestRate,
+        tenureMonths: Number(editForm.tenureMonths),
+        startDate: editForm.startDate,
+        firstPaymentDate: editForm.firstPaymentDate,
+        paymentDueDay: Number(editForm.paymentDueDay),
+        currentOutstandingPrincipal: editForm.currentOutstandingPrincipal ? editForm.currentOutstandingPrincipal : null,
+        remainingMonths: editForm.remainingMonths ? Number(editForm.remainingMonths) : null,
+      });
+      setEditOpen(false);
+      load();
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Could not update loan");
+    }
   }
 
   useEffect(() => { load(); }, [id]);
@@ -62,9 +117,12 @@ export default function LoanDetailPage() {
       <ErrorText message={error} />
       {loan && (
         <>
-          <div>
-            <p className="text-sm text-muted-foreground">{loan.loanType} · {loan.annualInterestRate}% annual</p>
-            <h1 className="text-2xl font-semibold">{loan.name}</h1>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm text-muted-foreground">{loan.loanType} · {loan.annualInterestRate}% annual</p>
+              <h1 className="text-2xl font-semibold">{loan.name}</h1>
+            </div>
+            <Button type="button" variant="outline" onClick={openEditModal}>Edit loan</Button>
           </div>
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Stat label="Outstanding" value={formatInr(loan.outstandingPrincipal)} />
@@ -149,6 +207,29 @@ export default function LoanDetailPage() {
               </ul>
             )}
           </section>
+          <Dialog open={editOpen} onOpenChange={setEditOpen}>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
+              <DialogHeader><DialogTitle>Edit loan & recalibrate</DialogTitle></DialogHeader>
+              {editError && <ErrorText message={editError} />}
+              <div className="space-y-3">
+                <Field label="Name"><Input value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} placeholder="Home loan" /></Field>
+                <Field label="Type">
+                  <select className="h-10 w-full rounded-md border bg-white px-3 text-sm" value={editForm.loanType} onChange={(event) => setEditForm({ ...editForm, loanType: event.target.value as Loan["loanType"] })}>
+                    {["HOME", "PERSONAL", "AUTO", "EDUCATION", "OTHER"].map((type) => <option key={type}>{type}</option>)}
+                  </select>
+                </Field>
+                <Field label="Original Principal"><Input value={editForm.principalAmount} onChange={(event) => setEditForm({ ...editForm, principalAmount: event.target.value })} placeholder="2500000.00" /></Field>
+                <Field label="Current outstanding principal"><Input value={editForm.currentOutstandingPrincipal} onChange={(event) => setEditForm({ ...editForm, currentOutstandingPrincipal: event.target.value })} placeholder="800000.00" /></Field>
+                <Field label="Annual interest %"><Input value={editForm.annualInterestRate} onChange={(event) => setEditForm({ ...editForm, annualInterestRate: event.target.value })} /></Field>
+                <Field label="Remaining EMIs (months)"><Input value={editForm.remainingMonths} onChange={(event) => setEditForm({ ...editForm, remainingMonths: event.target.value })} placeholder="180" /></Field>
+                <Field label="Total tenure (months)"><Input value={editForm.tenureMonths} onChange={(event) => setEditForm({ ...editForm, tenureMonths: event.target.value })} /></Field>
+                <Field label="Start date"><Input type="date" value={editForm.startDate} onChange={(event) => setEditForm({ ...editForm, startDate: event.target.value })} /></Field>
+                <Field label="First payment date"><Input type="date" value={editForm.firstPaymentDate} onChange={(event) => setEditForm({ ...editForm, firstPaymentDate: event.target.value, paymentDueDay: event.target.value ? String(new Date(event.target.value).getDate()) : editForm.paymentDueDay })} /></Field>
+                <Field label="Due day (1–28)"><Input value={editForm.paymentDueDay} onChange={(event) => setEditForm({ ...editForm, paymentDueDay: event.target.value })} /></Field>
+                <Button type="button" onClick={updateLoan}>Save changes & recalculate</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </div>

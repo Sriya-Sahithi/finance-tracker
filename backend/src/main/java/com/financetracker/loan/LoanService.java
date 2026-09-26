@@ -93,18 +93,37 @@ public class LoanService {
     public LoanResponse update(Long id, LoanRequest request) {
         validateDates(request);
         Loan loan = require(id);
-        if (paymentRepository.existsByLoanId(loan.getId())) {
-            loan.setName(request.name().trim());
-            loan.setLoanType(request.loanType());
-            loan.setPaymentDueDay(request.paymentDueDay());
-            return toResponse(loan);
-        }
+        BigDecimal principal = Money.scale(request.principalAmount());
+        boolean hasPayments = paymentRepository.existsByLoanId(loan.getId());
+
         BigDecimal outstanding = request.currentOutstandingPrincipal() == null
-                ? Money.scale(request.principalAmount())
+                ? (hasPayments ? loan.getOutstandingPrincipal() : principal)
                 : Money.scale(request.currentOutstandingPrincipal());
-        Integer remainingMonths = request.remainingMonths() == null ? request.tenureMonths() : request.remainingMonths();
-        applyTerms(loan, request, outstanding, remainingMonths);
+        if (outstanding.compareTo(principal) > 0) {
+            throw new BadRequestException("Current outstanding principal cannot be greater than the original principal");
+        }
+        Integer remainingMonths = request.remainingMonths() != null
+                ? request.remainingMonths()
+                : (request.tenureMonths() != null ? request.tenureMonths() : loan.getTenureMonths());
+        if (remainingMonths == null || remainingMonths < 1) {
+            throw new BadRequestException("Remaining months must be at least 1");
+        }
+
+        BigDecimal rate = request.annualInterestRate().setScale(4, Money.ROUNDING);
+        loan.setName(request.name().trim());
+        loan.setLoanType(request.loanType());
+        loan.setPrincipalAmount(principal);
+        loan.setAnnualInterestRate(rate);
+        loan.setTenureMonths(remainingMonths);
+        loan.setStartDate(request.startDate());
+        loan.setFirstPaymentDate(request.firstPaymentDate());
+        loan.setPaymentDueDay(request.paymentDueDay());
         loan.setOutstandingPrincipal(outstanding);
+        if (outstanding.signum() > 0) {
+            loan.setEmiAmount(calculator.emi(outstanding, rate, remainingMonths));
+        } else {
+            loan.setEmiAmount(Money.ZERO);
+        }
         return toResponse(loan);
     }
 
@@ -140,13 +159,15 @@ public class LoanService {
                     "ACTUAL"));
         }
         if (payments.isEmpty()) {
-            for (ScheduleRow row : calculator.contractualSchedule(
-                    loan.getPrincipalAmount(),
-                    loan.getAnnualInterestRate(),
-                    loan.getEmiAmount(),
-                    loan.getFirstPaymentDate(),
-                    loan.getTenureMonths())) {
-                rows.add(toProjected(number++, row));
+            if (loan.getOutstandingPrincipal().signum() > 0) {
+                for (ScheduleRow row : calculator.contractualSchedule(
+                        loan.getOutstandingPrincipal(),
+                        loan.getAnnualInterestRate(),
+                        loan.getEmiAmount(),
+                        loan.getFirstPaymentDate(),
+                        loan.getTenureMonths())) {
+                    rows.add(toProjected(number++, row));
+                }
             }
         } else if (loan.getOutstandingPrincipal().signum() > 0) {
             LocalDate nextDate = payments.get(payments.size() - 1).getPaymentDate().plusMonths(1);

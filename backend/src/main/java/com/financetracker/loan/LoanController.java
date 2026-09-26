@@ -54,7 +54,7 @@ public class LoanController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update a loan. Terms are recalculated only before the first payment.")
+    @Operation(summary = "Update a loan and recalibrate terms, outstanding principal, or remaining tenure")
     public LoanResponse update(@PathVariable Long id, @Valid @RequestBody LoanRequest request) {
         return loanService.update(id, request);
     }

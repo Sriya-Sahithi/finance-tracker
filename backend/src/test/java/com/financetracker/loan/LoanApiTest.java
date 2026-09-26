@@ -108,6 +108,67 @@ class LoanApiTest {
                 .isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    @Test
+    void editLoanTermsAndRecalibrate() {
+        String user = token("editer@example.com");
+        long accountId = account(user);
+
+        // 1. Create a loan
+        ResponseEntity<JsonNode> created = exchange("/api/loans", HttpMethod.POST, user, loanBody());
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        long loanId = created.getBody().get("id").asLong();
+
+        // 2. Edit loan before payments (recalibrate outstanding balance to 80,000 and 10 remaining months)
+        ResponseEntity<JsonNode> editedBefore = exchange("/api/loans/" + loanId, HttpMethod.PUT, user, Map.of(
+                "name", "Home loan edited",
+                "loanType", "HOME",
+                "principalAmount", "100000.00",
+                "annualInterestRate", "12.0000",
+                "tenureMonths", 12,
+                "startDate", "2026-01-05",
+                "firstPaymentDate", "2026-02-05",
+                "paymentDueDay", 5,
+                "currentOutstandingPrincipal", "80000.00",
+                "remainingMonths", 10));
+        assertThat(editedBefore.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode beforeBody = editedBefore.getBody();
+        assertThat(beforeBody.get("name").asText()).isEqualTo("Home loan edited");
+        assertThat(beforeBody.get("outstandingPrincipal").asText()).isEqualTo("80000.00");
+        assertThat(beforeBody.get("tenureMonths").asInt()).isEqualTo(10);
+        assertThat(beforeBody.get("annualInterestRate").asText()).isEqualTo("12.0000");
+        assertThat(beforeBody.get("remainingMonths").asInt()).isEqualTo(10);
+
+        // 3. Record a payment
+        ResponseEntity<JsonNode> pay = exchange("/api/loans/" + loanId + "/payments", HttpMethod.POST, user, Map.of(
+                "paymentDate", "2026-02-05",
+                "extraPrincipalAmount", "0.00",
+                "accountId", accountId));
+        assertThat(pay.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        // 4. Edit loan after payment (adjust outstanding principal to 60,000 and remaining months to 6)
+        ResponseEntity<JsonNode> editedAfter = exchange("/api/loans/" + loanId, HttpMethod.PUT, user, Map.of(
+                "name", "Home loan restructured",
+                "loanType", "HOME",
+                "principalAmount", "100000.00",
+                "annualInterestRate", "12.0000",
+                "tenureMonths", 10,
+                "startDate", "2026-01-05",
+                "firstPaymentDate", "2026-02-05",
+                "paymentDueDay", 5,
+                "currentOutstandingPrincipal", "60000.00",
+                "remainingMonths", 6));
+        assertThat(editedAfter.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode afterBody = editedAfter.getBody();
+        assertThat(afterBody.get("name").asText()).isEqualTo("Home loan restructured");
+        assertThat(afterBody.get("outstandingPrincipal").asText()).isEqualTo("60000.00");
+        assertThat(afterBody.get("tenureMonths").asInt()).isEqualTo(6);
+        assertThat(afterBody.get("remainingMonths").asInt()).isEqualTo(6);
+
+        // Verify payments still exist
+        JsonNode payments = exchange("/api/loans/" + loanId + "/payments", HttpMethod.GET, user, null).getBody();
+        assertThat(payments).hasSize(1);
+    }
+
     private Map<String, Object> loanBody() {
         return Map.of(
                 "name", "Home loan",
