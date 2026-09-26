@@ -148,6 +148,16 @@ export type MonthlyReport = {
   interestVsPrincipal: { year: number; month: number; interest: string; principal: string }[];
 };
 
+export type CreditReportAccount = {
+  id?: number | null;
+  bankName: string;
+  accountType: string;
+  accountNumberMasked?: string | null;
+  currentBalance: string;
+  creditLimit?: string | null;
+  status: string;
+};
+
 export type StatementImportPreview = {
   sessionId: string;
   detectedAccount: {
