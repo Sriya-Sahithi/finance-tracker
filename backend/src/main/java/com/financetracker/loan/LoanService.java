@@ -69,11 +69,23 @@ public class LoanService {
     public LoanResponse create(LoanRequest request) {
         validateDates(request);
         User user = currentUserService.require();
+        BigDecimal principal = Money.scale(request.principalAmount());
+        BigDecimal outstanding = request.currentOutstandingPrincipal() == null
+                ? principal
+                : Money.scale(request.currentOutstandingPrincipal());
+        if (outstanding.compareTo(principal) > 0) {
+            throw new BadRequestException("Current outstanding principal cannot be greater than the original principal");
+        }
+        Integer remainingMonths = request.remainingMonths() == null ? request.tenureMonths() : request.remainingMonths();
+        if (remainingMonths == null || remainingMonths < 1) {
+            throw new BadRequestException("Remaining months must be at least 1 when an existing loan is being entered");
+        }
+
         Loan loan = new Loan();
         loan.setUser(user);
         loan.setPrepaymentStrategy(PrepaymentStrategy.REDUCE_TENURE);
-        applyTerms(loan, request);
-        loan.setOutstandingPrincipal(loan.getPrincipalAmount());
+        applyTerms(loan, request, outstanding, remainingMonths);
+        loan.setOutstandingPrincipal(outstanding);
         return toResponse(loanRepository.save(loan));
     }
 
@@ -87,8 +99,12 @@ public class LoanService {
             loan.setPaymentDueDay(request.paymentDueDay());
             return toResponse(loan);
         }
-        applyTerms(loan, request);
-        loan.setOutstandingPrincipal(loan.getPrincipalAmount());
+        BigDecimal outstanding = request.currentOutstandingPrincipal() == null
+                ? Money.scale(request.principalAmount())
+                : Money.scale(request.currentOutstandingPrincipal());
+        Integer remainingMonths = request.remainingMonths() == null ? request.tenureMonths() : request.remainingMonths();
+        applyTerms(loan, request, outstanding, remainingMonths);
+        loan.setOutstandingPrincipal(outstanding);
         return toResponse(loan);
     }
 
@@ -153,26 +169,48 @@ public class LoanService {
     @Transactional
     public LoanPaymentResponse recordPayment(Long id, LoanPaymentRequest request) {
         Loan loan = require(id);
+        PrepaymentStrategy strategy = request.strategy() == null ? PrepaymentStrategy.REDUCE_TENURE : request.strategy();
+        BigDecimal extraPrincipal = request.extraPrincipalAmount() == null ? Money.ZERO : Money.scale(request.extraPrincipalAmount());
         PaymentSplit split = calculator.split(
                 loan.getOutstandingPrincipal(),
                 loan.getAnnualInterestRate(),
                 loan.getEmiAmount(),
-                request.extraPrincipalAmount());
-        return toPaymentResponse(persistPayment(loan, request.paymentDate(), split, request.accountId(), request.notes()));
+                extraPrincipal);
+        LoanPayment payment = persistPayment(loan, request.paymentDate(), split, request.accountId(), request.notes());
+        if (extraPrincipal.signum() > 0) {
+            applyExtraPrincipalStrategy(loan, request, split, strategy);
+            loanRepository.save(loan);
+        }
+        return toPaymentResponse(payment);
     }
 
     @Transactional
     public PrepaymentResponse prepay(Long id, PrepaymentRequest request) {
         Loan loan = require(id);
+        PrepaymentStrategy strategy = request.strategy() == null ? PrepaymentStrategy.REDUCE_TENURE : request.strategy();
+        BigDecimal extraPrincipal = Money.scale(request.extraPrincipalAmount());
         PrepaymentAnalysis analysis = calculator.analyze(
                 loan.getOutstandingPrincipal(),
                 loan.getAnnualInterestRate(),
                 loan.getEmiAmount(),
                 request.paymentDate(),
-                request.extraPrincipalAmount(),
-                PrepaymentStrategy.REDUCE_TENURE);
+                extraPrincipal,
+                strategy,
+                strategy == PrepaymentStrategy.REDUCE_EMI ? request.remainingMonths() : null);
         LoanPayment payment = persistPayment(
                 loan, request.paymentDate(), analysis.payment(), request.accountId(), request.notes());
+        applyExtraPrincipalStrategy(
+                loan,
+                new LoanPaymentRequest(
+                        request.paymentDate(),
+                        extraPrincipal,
+                        strategy,
+                        request.remainingMonths(),
+                        request.accountId(),
+                        request.notes()),
+                analysis.payment(),
+                strategy);
+        loanRepository.save(loan);
         return new PrepaymentResponse(
                 toPaymentResponse(payment),
                 analysis.previousOutstanding(),
@@ -253,19 +291,51 @@ public class LoanService {
         paymentRepository.delete(payment);
     }
 
-    private void applyTerms(Loan loan, LoanRequest request) {
+    private void applyTerms(Loan loan, LoanRequest request, BigDecimal outstandingPrincipal, int remainingMonths) {
         BigDecimal principal = Money.scale(request.principalAmount());
         BigDecimal rate = request.annualInterestRate().setScale(4, Money.ROUNDING);
-        BigDecimal emi = calculator.emi(principal, rate, request.tenureMonths());
+        BigDecimal emi = calculator.emi(outstandingPrincipal, rate, remainingMonths);
         loan.setName(request.name().trim());
         loan.setLoanType(request.loanType());
         loan.setPrincipalAmount(principal);
         loan.setAnnualInterestRate(rate);
-        loan.setTenureMonths(request.tenureMonths());
+        loan.setTenureMonths(remainingMonths);
         loan.setEmiAmount(emi);
         loan.setStartDate(request.startDate());
         loan.setFirstPaymentDate(request.firstPaymentDate());
         loan.setPaymentDueDay(request.paymentDueDay());
+    }
+
+    private void applyExtraPrincipalStrategy(
+            Loan loan,
+            LoanPaymentRequest request,
+            PaymentSplit split,
+            PrepaymentStrategy strategy
+    ) {
+        strategy = strategy == null ? PrepaymentStrategy.REDUCE_TENURE : strategy;
+        switch (strategy) {
+            case REDUCE_TENURE -> {
+                List<ScheduleRow> projected = calculator.project(
+                        split.remaining(),
+                        loan.getAnnualInterestRate(),
+                        loan.getEmiAmount(),
+                        request.paymentDate().plusMonths(1));
+                int remainingMonths = projected.size();
+                loan.setPrepaymentStrategy(PrepaymentStrategy.REDUCE_TENURE);
+                loan.setTenureMonths(Math.max(1, remainingMonths));
+            }
+            case REDUCE_EMI -> {
+                Integer remainingMonths = request.remainingMonths();
+                if (remainingMonths == null || remainingMonths < 1) {
+                    throw new BadRequestException("Remaining months are required when reducing the EMI");
+                }
+                BigDecimal newEmi = calculator.emi(split.remaining(), loan.getAnnualInterestRate(), remainingMonths);
+                loan.setPrepaymentStrategy(PrepaymentStrategy.REDUCE_EMI);
+                loan.setTenureMonths(remainingMonths);
+                loan.setEmiAmount(newEmi);
+            }
+            default -> throw new BadRequestException("Unsupported prepayment strategy");
+        }
     }
 
     private void validateDates(LoanRequest request) {

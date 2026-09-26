@@ -21,6 +21,8 @@ export default function LoanDetailPage() {
   const [result, setResult] = useState<Prepayment | null>(null);
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
   const [extra, setExtra] = useState("0.00");
+  const [strategy, setStrategy] = useState<"REDUCE_TENURE" | "REDUCE_EMI">("REDUCE_TENURE");
+  const [remainingMonths, setRemainingMonths] = useState("12");
   const [accountId, setAccountId] = useState("");
 
   function load() {
@@ -42,6 +44,8 @@ export default function LoanDetailPage() {
     const body = {
       paymentDate,
       extraPrincipalAmount: extra || "0",
+      strategy,
+      remainingMonths: strategy === "REDUCE_EMI" ? Number(remainingMonths || 0) : null,
       accountId: accountId ? Number(accountId) : null,
     };
     try {
@@ -70,20 +74,31 @@ export default function LoanDetailPage() {
           </section>
           <section className="rounded-lg border bg-white p-5">
             <h2 className="font-semibold">Record a payment</h2>
-            <p className="mb-4 mt-1 text-sm text-muted-foreground">Extra principal is applied on top of the EMI and reduces the tenure.</p>
-            <div className="grid gap-3 md:grid-cols-4">
+            <p className="mb-4 mt-1 text-sm text-muted-foreground">Choose whether extra principal reduces your tenure, or reduces the EMI while keeping the remaining months fixed.</p>
+            <div className="grid gap-3 md:grid-cols-5">
               <Field label="Date"><Input type="date" value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} /></Field>
               <Field label="Extra principal"><Input value={extra} onChange={(event) => setExtra(event.target.value)} /></Field>
+              <Field label="Strategy">
+                <select className="h-10 w-full rounded-md border bg-white px-3 text-sm" value={strategy} onChange={(event) => setStrategy(event.target.value as "REDUCE_TENURE" | "REDUCE_EMI")}>
+                  <option value="REDUCE_TENURE">Reduce tenure</option>
+                  <option value="REDUCE_EMI">Reduce EMI</option>
+                </select>
+              </Field>
+              {strategy === "REDUCE_EMI" ? (
+                <Field label="Remaining months"><Input value={remainingMonths} onChange={(event) => setRemainingMonths(event.target.value)} /></Field>
+              ) : (
+                <Field label="Remaining months"><Input value={String(loan.remainingMonths)} disabled /></Field>
+              )}
               <Field label="Pay from account">
                 <select className="h-10 w-full rounded-md border bg-white px-3 text-sm" value={accountId} onChange={(event) => setAccountId(event.target.value)}>
                   <option value="">Do not post to an account</option>
                   {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
                 </select>
               </Field>
-              <div className="flex items-end gap-2">
-                <Button type="button" variant="outline" onClick={() => pay(false)}>Pay EMI</Button>
-                <Button type="button" onClick={() => pay(true)}>Prepay</Button>
-              </div>
+            </div>
+            <div className="mt-4 flex items-end gap-2">
+              <Button type="button" variant="outline" onClick={() => pay(false)}>Pay EMI</Button>
+              <Button type="button" onClick={() => pay(true)}>Prepay</Button>
             </div>
             {result && (
               <dl className="mt-4 grid gap-2 rounded-md bg-teal-50 p-4 text-sm sm:grid-cols-2">

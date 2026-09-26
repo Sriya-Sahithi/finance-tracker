@@ -29,11 +29,32 @@ export default function DashboardPage() {
       <ErrorText message={error} />
       {data && (
         <>
-          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <Stat label="Income" value={formatInr(data.income)} />
             <Stat label="Expenses" value={formatInr(data.expenses)} />
             <Stat label="Savings" value={formatInr(data.savings)} hint="Income minus expenses" />
+            <Stat label="Current account balance" value={formatInr(data.totalAccountBalance)} />
             <Stat label="Budget used" value={formatInr(data.budgetUsed)} hint={`of ${formatInr(data.totalBudget)}`} />
+          </section>
+          <section className="rounded-lg border bg-white">
+            <div className="border-b px-5 py-4">
+              <h2 className="font-semibold">Accounts</h2>
+            </div>
+            {data.accountBalances.length === 0 ? (
+              <p className="px-5 py-8 text-sm text-muted-foreground">No accounts yet.</p>
+            ) : (
+              <ul>
+                {data.accountBalances.map((account) => (
+                  <li key={account.id} className="flex items-center justify-between gap-3 border-t px-5 py-3 text-sm first:border-t-0">
+                    <div>
+                      <p className="font-medium">{account.name}</p>
+                      <p className="text-muted-foreground">{account.type}</p>
+                    </div>
+                    <span className="tabular font-medium">{formatInr(account.balance)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Stat label="Outstanding loans" value={formatInr(data.loans.totalOutstanding)} hint={`${data.loans.activeLoanCount} active`} />

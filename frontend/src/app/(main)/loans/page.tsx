@@ -21,6 +21,9 @@ const empty = {
   startDate: "",
   firstPaymentDate: "",
   paymentDueDay: "5",
+  existingLoan: false,
+  currentOutstandingPrincipal: "",
+  remainingMonths: "",
 };
 
 export default function LoansPage() {
@@ -41,6 +44,8 @@ export default function LoansPage() {
         ...form,
         tenureMonths: Number(form.tenureMonths),
         paymentDueDay: Number(form.paymentDueDay),
+        currentOutstandingPrincipal: form.existingLoan && form.currentOutstandingPrincipal ? form.currentOutstandingPrincipal : null,
+        remainingMonths: form.existingLoan && form.remainingMonths ? Number(form.remainingMonths) : null,
       });
       setOpen(false);
       setForm(empty);
@@ -106,8 +111,18 @@ export default function LoansPage() {
             <Field label="Annual interest %"><Input value={form.annualInterestRate} onChange={(event) => setForm({ ...form, annualInterestRate: event.target.value })} /></Field>
             <Field label="Tenure (months)"><Input value={form.tenureMonths} onChange={(event) => setForm({ ...form, tenureMonths: event.target.value })} /></Field>
             <Field label="Start date"><Input type="date" value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value })} /></Field>
-            <Field label="First payment date"><Input type="date" value={form.firstPaymentDate} onChange={(event) => setForm({ ...form, firstPaymentDate: event.target.value, paymentDueDay: event.target.value ? String(Number(event.target.value.slice(8, 10))) : form.paymentDueDay })} /></Field>
+            <Field label="First payment date"><Input type="date" value={form.firstPaymentDate} onChange={(event) => setForm({ ...form, firstPaymentDate: event.target.value, paymentDueDay: event.target.value ? String(new Date(event.target.value).getDate()) : form.paymentDueDay })} /></Field>
             <Field label="Due day (1–28)"><Input value={form.paymentDueDay} onChange={(event) => setForm({ ...form, paymentDueDay: event.target.value })} /></Field>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={form.existingLoan} onChange={(event) => setForm({ ...form, existingLoan: event.target.checked })} />
+              This is an existing loan with a current outstanding balance
+            </label>
+            {form.existingLoan && (
+              <>
+                <Field label="Current outstanding principal"><Input value={form.currentOutstandingPrincipal} onChange={(event) => setForm({ ...form, currentOutstandingPrincipal: event.target.value })} placeholder="800000.00" /></Field>
+                <Field label="Remaining months"><Input value={form.remainingMonths} onChange={(event) => setForm({ ...form, remainingMonths: event.target.value })} placeholder="180" /></Field>
+              </>
+            )}
             <Button type="button" onClick={create}>Calculate EMI and save</Button>
           </div>
         </DialogContent>

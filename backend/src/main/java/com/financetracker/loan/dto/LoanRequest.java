@@ -22,6 +22,10 @@ public record LoanRequest(
         @NotNull @Min(1) @Max(600) Integer tenureMonths,
         @NotNull LocalDate startDate,
         @NotNull LocalDate firstPaymentDate,
-        @NotNull @Min(1) @Max(28) Integer paymentDueDay
+        @NotNull @Min(1) @Max(28) Integer paymentDueDay,
+        @Schema(description = "Optional for an existing loan: current outstanding balance to be tracked")
+        @DecimalMin("0.00") @Digits(integer = 15, fraction = 2) BigDecimal currentOutstandingPrincipal,
+        @Schema(description = "Optional for an existing loan: remaining months the borrower still needs to repay")
+        @Min(1) @Max(600) Integer remainingMonths
 ) {
 }

@@ -101,10 +101,25 @@ public class LoanCalculationService {
             BigDecimal extraPrincipal,
             PrepaymentStrategy strategy
     ) {
-        if (strategy != PrepaymentStrategy.REDUCE_TENURE) {
-            throw new IllegalArgumentException("Unsupported prepayment strategy: " + strategy);
+        return analyze(outstanding, annualPercent, emi, nextPaymentDate, extraPrincipal, strategy, null);
+    }
+
+    public PrepaymentAnalysis analyze(
+            BigDecimal outstanding,
+            BigDecimal annualPercent,
+            BigDecimal emi,
+            LocalDate nextPaymentDate,
+            BigDecimal extraPrincipal,
+            PrepaymentStrategy strategy,
+            Integer remainingMonths
+    ) {
+        if (strategy == null) {
+            strategy = PrepaymentStrategy.REDUCE_TENURE;
         }
-        return analyzeReduceTenure(outstanding, annualPercent, emi, nextPaymentDate, extraPrincipal);
+        return switch (strategy) {
+            case REDUCE_TENURE -> analyzeReduceTenure(outstanding, annualPercent, emi, nextPaymentDate, extraPrincipal);
+            case REDUCE_EMI -> analyzeReduceEmi(outstanding, annualPercent, emi, nextPaymentDate, extraPrincipal, remainingMonths);
+        };
     }
 
     private PrepaymentAnalysis analyzeReduceTenure(
@@ -138,6 +153,43 @@ public class LoanCalculationService {
                 previousRemaining,
                 newRemaining,
                 PrepaymentStrategy.REDUCE_TENURE,
+                payment);
+    }
+
+    private PrepaymentAnalysis analyzeReduceEmi(
+            BigDecimal outstanding,
+            BigDecimal annualPercent,
+            BigDecimal emi,
+            LocalDate nextPaymentDate,
+            BigDecimal extraPrincipal,
+            Integer remainingMonths
+    ) {
+        if (remainingMonths == null || remainingMonths < 1) {
+            throw new IllegalArgumentException("Remaining months are required when reducing the EMI");
+        }
+        List<ScheduleRow> before = project(outstanding, annualPercent, emi, nextPaymentDate);
+        PaymentSplit payment = split(outstanding, annualPercent, emi, extraPrincipal);
+        BigDecimal newEmi = emi(payment.remaining(), annualPercent, remainingMonths);
+        List<ScheduleRow> after = payment.remaining().signum() == 0
+                ? List.of()
+                : project(payment.remaining(), annualPercent, newEmi, nextPaymentDate.plusMonths(1));
+        BigDecimal oldInterest = sumInterest(before);
+        BigDecimal newInterest = payment.interest().add(sumInterest(after));
+        BigDecimal saved = Money.scale(oldInterest.subtract(newInterest));
+        LocalDate previousPayoff = before.isEmpty() ? nextPaymentDate : before.get(before.size() - 1).date();
+        LocalDate newPayoff = payment.remaining().signum() == 0
+                ? nextPaymentDate
+                : nextPaymentDate.plusMonths(remainingMonths - 1L);
+        return new PrepaymentAnalysis(
+                Money.scale(outstanding),
+                payment.remaining(),
+                saved,
+                previousPayoff,
+                newPayoff,
+                0,
+                before.size(),
+                remainingMonths,
+                PrepaymentStrategy.REDUCE_EMI,
                 payment);
     }
 

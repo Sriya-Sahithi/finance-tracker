@@ -13,8 +13,18 @@ public record DashboardResponse(
         BigDecimal totalBudget,
         BigDecimal budgetUsed,
         BigDecimal budgetRemaining,
+        BigDecimal totalAccountBalance,
+        List<AccountBalanceSummary> accountBalances,
         LoanSummary loans
 ) {
+    public record AccountBalanceSummary(
+            Long id,
+            String name,
+            String type,
+            BigDecimal balance
+    ) {
+    }
+
     public record LoanSummary(
             BigDecimal totalOutstanding,
             BigDecimal totalEmiObligation,
