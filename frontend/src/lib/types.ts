@@ -1,7 +1,17 @@
+export type Page<T> = {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+};
+
+export type User = { id: number; email: string; name: string; createdAt: string };
+
 export type Account = {
   id: number;
   name: string;
-  type: string;
+  type: "BANK" | "CASH" | "CREDIT_CARD" | "OTHER";
   accountNumber: string | null;
   openingBalance: string;
   currentBalance: string;
@@ -148,16 +158,6 @@ export type MonthlyReport = {
   interestVsPrincipal: { year: number; month: number; interest: string; principal: string }[];
 };
 
-export type CreditReportAccount = {
-  id?: number | null;
-  bankName: string;
-  accountType: string;
-  accountNumberMasked?: string | null;
-  currentBalance: string;
-  creditLimit?: string | null;
-  status: string;
-};
-
 export type StatementImportPreview = {
   sessionId: string;
   detectedAccount: {
@@ -190,7 +190,60 @@ export type StatementImportPreview = {
 };
 
 export type StatementImportConfirmResponse = {
+  sessionId: string;
+  accountId: number;
+  requestedCount: number;
   importedCount: number;
   duplicateCount: number;
+  incomeImported: string;
+  expenseImported: string;
   accountBalance: string;
+};
+
+export type ApiFieldError = { field: string; message: string };
+
+export type ImportTargetType = "ACCOUNT" | "LOAN";
+
+export type StatementColumnMapping = {
+  dateColumn: string | null;
+  descriptionColumn: string | null;
+  amountColumn: string | null;
+  debitColumn: string | null;
+  creditColumn: string | null;
+  balanceColumn: string | null;
+  accountNumberColumn: string | null;
+};
+
+export type StatementParsePreview = {
+  importToken: string;
+  targetType: ImportTargetType;
+  headers: string[];
+  sampleRows: Record<string, string>[];
+  suggestedMapping: StatementColumnMapping;
+  rowCount: number;
+};
+
+export type StatementCommitResult = {
+  rowsProcessed: number;
+  rowsImported: number;
+  rowsSkipped: number;
+  transactionsCreated: number;
+  updatedBalance: string;
+};
+
+export type CreditReportAccount = {
+  id: number | null;
+  bankName: string;
+  accountType: "BANK" | "CREDIT_CARD" | "LOAN" | "OTHER";
+  accountNumberMasked: string | null;
+  currentBalance: string;
+  creditLimit: string | null;
+  status: "ACTIVE" | "CLOSED";
+  reportDate: string | null;
+};
+
+export type CreditReportParsePreview = {
+  accounts: CreditReportAccount[];
+  sourceFileName: string;
+  warning: string | null;
 };
