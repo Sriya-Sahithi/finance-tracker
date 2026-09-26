@@ -180,8 +180,12 @@ export type StatementImportPreview = {
   warnings: string[];
   summary: {
     totalRows: number;
-    imported: number;
-    ignored: number;
+    validRows: number;
+    skippedRows: number;
+    incomeCount: number;
+    incomeTotal: string;
+    expenseCount: number;
+    expenseTotal: string;
   };
 };
 
