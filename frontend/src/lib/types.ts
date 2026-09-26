@@ -184,3 +184,9 @@ export type StatementImportPreview = {
     ignored: number;
   };
 };
+
+export type StatementImportConfirmResponse = {
+  importedCount: number;
+  duplicateCount: number;
+  accountBalance: string;
+};
