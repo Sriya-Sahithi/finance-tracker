@@ -124,6 +124,7 @@ public class LoanService {
         } else {
             loan.setEmiAmount(Money.ZERO);
         }
+        loanRepository.save(loan);
         return toResponse(loan);
     }
 

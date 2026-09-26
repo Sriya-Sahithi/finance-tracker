@@ -27,6 +27,7 @@ export default function LoanDetailPage() {
   const [accountId, setAccountId] = useState("");
   const [editOpen, setEditOpen] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [updating, setUpdating] = useState(false);
   const [editForm, setEditForm] = useState({
     name: "",
     loanType: "HOME" as Loan["loanType"],
@@ -71,6 +72,7 @@ export default function LoanDetailPage() {
 
   async function updateLoan() {
     setEditError(null);
+    setUpdating(true);
     try {
       await loanApi.update(id, {
         name: editForm.name,
@@ -88,6 +90,8 @@ export default function LoanDetailPage() {
       load();
     } catch (err) {
       setEditError(err instanceof Error ? err.message : "Could not update loan");
+    } finally {
+      setUpdating(false);
     }
   }
 
@@ -224,9 +228,23 @@ export default function LoanDetailPage() {
                 <Field label="Remaining EMIs (months)"><Input value={editForm.remainingMonths} onChange={(event) => setEditForm({ ...editForm, remainingMonths: event.target.value })} placeholder="180" /></Field>
                 <Field label="Total tenure (months)"><Input value={editForm.tenureMonths} onChange={(event) => setEditForm({ ...editForm, tenureMonths: event.target.value })} /></Field>
                 <Field label="Start date"><Input type="date" value={editForm.startDate} onChange={(event) => setEditForm({ ...editForm, startDate: event.target.value })} /></Field>
-                <Field label="First payment date"><Input type="date" value={editForm.firstPaymentDate} onChange={(event) => setEditForm({ ...editForm, firstPaymentDate: event.target.value, paymentDueDay: event.target.value ? String(new Date(event.target.value).getDate()) : editForm.paymentDueDay })} /></Field>
+                <Field label="First payment date">
+                  <Input
+                    type="date"
+                    value={editForm.firstPaymentDate}
+                    onChange={(event) => {
+                      const val = event.target.value;
+                      const dayParts = val ? val.split("-") : [];
+                      const day = dayParts.length === 3 && dayParts[2] ? String(parseInt(dayParts[2], 10)) : editForm.paymentDueDay;
+                      setEditForm({ ...editForm, firstPaymentDate: val, paymentDueDay: day });
+                    }}
+                  />
+                </Field>
                 <Field label="Due day (1–28)"><Input value={editForm.paymentDueDay} onChange={(event) => setEditForm({ ...editForm, paymentDueDay: event.target.value })} /></Field>
-                <Button type="button" onClick={updateLoan}>Save changes & recalculate</Button>
+                {editError && <ErrorText message={editError} />}
+                <Button type="button" onClick={updateLoan} disabled={updating}>
+                  {updating ? "Saving..." : "Save changes & recalculate"}
+                </Button>
               </div>
             </DialogContent>
           </Dialog>

@@ -111,7 +111,18 @@ export default function LoansPage() {
             <Field label="Annual interest %"><Input value={form.annualInterestRate} onChange={(event) => setForm({ ...form, annualInterestRate: event.target.value })} /></Field>
             <Field label="Tenure (months)"><Input value={form.tenureMonths} onChange={(event) => setForm({ ...form, tenureMonths: event.target.value })} /></Field>
             <Field label="Start date"><Input type="date" value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value })} /></Field>
-            <Field label="First payment date"><Input type="date" value={form.firstPaymentDate} onChange={(event) => setForm({ ...form, firstPaymentDate: event.target.value, paymentDueDay: event.target.value ? String(new Date(event.target.value).getDate()) : form.paymentDueDay })} /></Field>
+            <Field label="First payment date">
+              <Input
+                type="date"
+                value={form.firstPaymentDate}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  const dayParts = val ? val.split("-") : [];
+                  const day = dayParts.length === 3 && dayParts[2] ? String(parseInt(dayParts[2], 10)) : form.paymentDueDay;
+                  setForm({ ...form, firstPaymentDate: val, paymentDueDay: day });
+                }}
+              />
+            </Field>
             <Field label="Due day (1–28)"><Input value={form.paymentDueDay} onChange={(event) => setForm({ ...form, paymentDueDay: event.target.value })} /></Field>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={form.existingLoan} onChange={(event) => setForm({ ...form, existingLoan: event.target.checked })} />
