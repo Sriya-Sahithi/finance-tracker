@@ -116,6 +116,40 @@ export default function LoanDetailPage() {
     }
   }
 
+  function handlePrincipalChange(val: string) {
+    setEditForm((prev) => {
+      const shouldSyncOutstanding = !prev.currentOutstandingPrincipal || prev.currentOutstandingPrincipal === prev.principalAmount;
+      return {
+        ...prev,
+        principalAmount: val,
+        currentOutstandingPrincipal: shouldSyncOutstanding ? val : prev.currentOutstandingPrincipal,
+      };
+    });
+  }
+
+  function handleTenureChange(val: string) {
+    setEditForm((prev) => {
+      const shouldSyncRemaining = !prev.remainingMonths || prev.remainingMonths === prev.tenureMonths;
+      return {
+        ...prev,
+        tenureMonths: val,
+        remainingMonths: shouldSyncRemaining ? val : prev.remainingMonths,
+      };
+    });
+  }
+
+  const previewEmi = (() => {
+    const p = parseFloat(editForm.currentOutstandingPrincipal || editForm.principalAmount);
+    const r = parseFloat(editForm.annualInterestRate);
+    const n = parseInt(editForm.remainingMonths || editForm.tenureMonths, 10);
+    if (!p || !r || !n || p <= 0 || n <= 0 || isNaN(p) || isNaN(r) || isNaN(n)) return null;
+    const monthlyRate = r / 12 / 100;
+    if (monthlyRate === 0) return (p / n).toFixed(2);
+    const growth = Math.pow(1 + monthlyRate, n);
+    const emi = (p * monthlyRate * growth) / (growth - 1);
+    return isFinite(emi) ? emi.toFixed(2) : null;
+  })();
+
   return (
     <div className="space-y-6">
       <ErrorText message={error} />
@@ -222,11 +256,11 @@ export default function LoanDetailPage() {
                     {["HOME", "PERSONAL", "AUTO", "EDUCATION", "OTHER"].map((type) => <option key={type}>{type}</option>)}
                   </select>
                 </Field>
-                <Field label="Original Principal"><Input value={editForm.principalAmount} onChange={(event) => setEditForm({ ...editForm, principalAmount: event.target.value })} placeholder="2500000.00" /></Field>
+                <Field label="Original Principal"><Input value={editForm.principalAmount} onChange={(event) => handlePrincipalChange(event.target.value)} placeholder="2500000.00" /></Field>
                 <Field label="Current outstanding principal"><Input value={editForm.currentOutstandingPrincipal} onChange={(event) => setEditForm({ ...editForm, currentOutstandingPrincipal: event.target.value })} placeholder="800000.00" /></Field>
                 <Field label="Annual interest %"><Input value={editForm.annualInterestRate} onChange={(event) => setEditForm({ ...editForm, annualInterestRate: event.target.value })} /></Field>
+                <Field label="Total tenure (months)"><Input value={editForm.tenureMonths} onChange={(event) => handleTenureChange(event.target.value)} /></Field>
                 <Field label="Remaining EMIs (months)"><Input value={editForm.remainingMonths} onChange={(event) => setEditForm({ ...editForm, remainingMonths: event.target.value })} placeholder="180" /></Field>
-                <Field label="Total tenure (months)"><Input value={editForm.tenureMonths} onChange={(event) => setEditForm({ ...editForm, tenureMonths: event.target.value })} /></Field>
                 <Field label="Start date"><Input type="date" value={editForm.startDate} onChange={(event) => setEditForm({ ...editForm, startDate: event.target.value })} /></Field>
                 <Field label="First payment date">
                   <Input
@@ -241,6 +275,12 @@ export default function LoanDetailPage() {
                   />
                 </Field>
                 <Field label="Due day (1–28)"><Input value={editForm.paymentDueDay} onChange={(event) => setEditForm({ ...editForm, paymentDueDay: event.target.value })} /></Field>
+                {previewEmi && (
+                  <div className="flex items-center justify-between rounded-md bg-teal-50 px-3 py-2.5 text-sm">
+                    <span className="text-muted-foreground">Recalibrated monthly EMI</span>
+                    <span className="tabular font-semibold text-teal-800">{formatInr(previewEmi)}</span>
+                  </div>
+                )}
                 {editError && <ErrorText message={editError} />}
                 <Button type="button" onClick={updateLoan} disabled={updating}>
                   {updating ? "Saving..." : "Save changes & recalculate"}

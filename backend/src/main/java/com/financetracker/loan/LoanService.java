@@ -114,7 +114,7 @@ public class LoanService {
         loan.setLoanType(request.loanType());
         loan.setPrincipalAmount(principal);
         loan.setAnnualInterestRate(rate);
-        loan.setTenureMonths(remainingMonths);
+        loan.setTenureMonths(request.tenureMonths() != null ? request.tenureMonths() : remainingMonths);
         loan.setStartDate(request.startDate());
         loan.setFirstPaymentDate(request.firstPaymentDate());
         loan.setPaymentDueDay(request.paymentDueDay());
@@ -321,7 +321,7 @@ public class LoanService {
         loan.setLoanType(request.loanType());
         loan.setPrincipalAmount(principal);
         loan.setAnnualInterestRate(rate);
-        loan.setTenureMonths(remainingMonths);
+        loan.setTenureMonths(request.tenureMonths() != null ? request.tenureMonths() : remainingMonths);
         loan.setEmiAmount(emi);
         loan.setStartDate(request.startDate());
         loan.setFirstPaymentDate(request.firstPaymentDate());
