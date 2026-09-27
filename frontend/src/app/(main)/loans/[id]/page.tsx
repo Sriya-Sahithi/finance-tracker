@@ -84,7 +84,7 @@ export default function LoanDetailPage() {
         firstPaymentDate: editForm.firstPaymentDate,
         paymentDueDay: Number(editForm.paymentDueDay),
         currentOutstandingPrincipal: editForm.currentOutstandingPrincipal ? editForm.currentOutstandingPrincipal : null,
-        remainingMonths: editForm.remainingMonths ? Number(editForm.remainingMonths) : null,
+        remainingMonths: editForm.remainingMonths ? Number(editForm.remainingMonths) : Number(editForm.tenureMonths),
       });
       setEditOpen(false);
       load();
